@@ -4,6 +4,8 @@ Journal des réveils nocturnes d'un enfant — PWA mobile, utilisable hors conne
 
 **En ligne** : https://pas-ce-soir.vercel.app (déploiement automatique à chaque push sur `main`)
 
+📖 **Documentation complète** (fonctionnelle, technique, base de données) : [`docs/`](docs/README.md)
+
 **Stack** : Nuxt 4 (SPA) · Nuxt UI 4 · Tailwind CSS 4 · Supabase (auth + Postgres) · Dexie (IndexedDB) · Vite PWA · Vercel
 
 ## Fonctionnalités
@@ -11,7 +13,8 @@ Journal des réveils nocturnes d'un enfant — PWA mobile, utilisable hors conne
 - **Gros bouton « RÉVEIL »** : un appui = un réveil horodaté (vibration + toast « Compléter / Annuler »)
 - **Compléter un réveil** : date/heure, raisons et actions choisies dans les listes du journal (paramétrables dans les réglages, vides à la création), commentaire en texte riche (gras, italique, listes…), auteur enregistré automatiquement
 - **Nuit en cours + historique** groupé par nuit (une nuit = 14h → 14h le lendemain)
-- **Statistiques** sur une période (préréglages ou date à date) : réveils par semaine / par mois, top 10 des raisons, répartition horaire
+- **Type de réveil** : lever ou réveil nocturne (facultatif)
+- **Statistiques** sur une période (préréglages ou date à date) : répartition lever / nocturne, réveils par semaine / par mois empilés par type, top 10 des raisons, répartition horaire
 - **Partage** : lien d'invitation `/rejoindre/<jeton>` → la personne crée un compte et rejoint le journal
 - **Hors connexion** : toutes les données sont dans IndexedDB ; les modifications sont envoyées à Supabase dès que le réseau revient
 
@@ -26,7 +29,7 @@ npm run dev
 ### Supabase
 
 1. Créer un projet sur [supabase.com](https://supabase.com)
-2. **SQL Editor** → exécuter `supabase/migrations/20261014000000_init.sql`
+2. **SQL Editor** → exécuter **toutes** les migrations de `supabase/migrations/`, dans l'ordre
 3. **Authentication → URL Configuration** :
    - *Site URL* : l'URL Vercel (ex. `https://pas-ce-soir.vercel.app`)
    - *Redirect URLs* : `https://pas-ce-soir.vercel.app/**` et `http://localhost:3000/**`
