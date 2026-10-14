@@ -52,33 +52,45 @@ const fmtMonthLong = new Intl.DateTimeFormat('fr-FR', { month: 'long', year: 'nu
 
 const granularity = ref<'week' | 'month'>('week')
 
-/** Séries par semaine / mois, avec les périodes vides (0) */
+/** Types de réveil et leur couleur (graphique empilé et répartition) */
+const typeSegments = [
+  ...WAKE_TYPES.map((t, i) => ({ ...t, bar: i === 0 ? 'bg-warning' : 'bg-primary' })),
+  { value: null, label: 'Non renseigné', icon: 'i-lucide-circle-help', bar: 'bg-accented' }
+]
+
+/** Séries par semaine / mois, empilées par type, avec les périodes vides (0) */
 const series = computed(() => {
   const [a, b] = range.value
-  const counts = new Map<string, number>()
+  const counts = new Map<string, number[]>()
   const keyOf = granularity.value === 'week' ? weekKey : monthKey
   for (const x of inRange.value) {
     const k = keyOf(x.night)
-    counts.set(k, (counts.get(k) ?? 0) + 1)
+    const c = counts.get(k) ?? typeSegments.map(() => 0)
+    c[typeSegments.findIndex(s => s.value === (x.w.wake_type ?? null))]!++
+    counts.set(k, c)
   }
-  const items: { key: string, label: string, value: number, tooltip: string }[] = []
+  const item = (key: string, label: string, title: string) => {
+    const c = counts.get(key) ?? typeSegments.map(() => 0)
+    const value = c.reduce((s, n) => s + n, 0)
+    const detail = typeSegments.flatMap((s, i) => (c[i] ? [`${s.label} ${c[i]}`] : [])).join(', ')
+    return {
+      key,
+      label,
+      value,
+      counts: c,
+      segments: typeSegments.map((s, i) => ({ value: c[i]!, class: s.bar })),
+      tooltip: `${title} : ${value} réveil${value > 1 ? 's' : ''}${detail ? ` (${detail})` : ''}`
+    }
+  }
+  const items: ReturnType<typeof item>[] = []
   if (granularity.value === 'week') {
     for (let d = fromDateKey(weekKey(a)); toDateKey(d) <= b; d = addDays(d, 7)) {
-      const k = toDateKey(d)
-      const v = counts.get(k) ?? 0
-      items.push({
-        key: k,
-        label: fmtDay.format(d),
-        value: v,
-        tooltip: `Semaine du ${fmtDay.format(d)} au ${fmtDay.format(addDays(d, 6))} : ${v} réveil${v > 1 ? 's' : ''}`
-      })
+      items.push(item(toDateKey(d), fmtDay.format(d), `Semaine du ${fmtDay.format(d)} au ${fmtDay.format(addDays(d, 6))}`))
     }
   } else {
     const start = fromDateKey(a)
     for (let d = new Date(start.getFullYear(), start.getMonth(), 1); monthKey(toDateKey(d)) <= monthKey(b); d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) {
-      const k = monthKey(toDateKey(d))
-      const v = counts.get(k) ?? 0
-      items.push({ key: k, label: fmtMonth.format(d), value: v, tooltip: `${fmtMonthLong.format(d)} : ${v} réveil${v > 1 ? 's' : ''}` })
+      items.push(item(monthKey(toDateKey(d)), fmtMonth.format(d), fmtMonthLong.format(d)))
     }
   }
   return items
@@ -105,10 +117,7 @@ const topReasons = computed(() => {
 /** Répartition lever / réveil nocturne (pourcentages sur l'ensemble des réveils de la période) */
 const byType = computed(() => {
   const total = inRange.value.length
-  const segments = [
-    ...WAKE_TYPES.map((t, i) => ({ ...t, bar: i === 0 ? 'bg-warning' : 'bg-primary' })),
-    { value: null, label: 'Non renseigné', icon: 'i-lucide-circle-help', bar: 'bg-accented' }
-  ].map((s) => {
+  const segments = typeSegments.map((s) => {
     const count = inRange.value.filter(({ w }) => (w.wake_type ?? null) === s.value).length
     return { ...s, count, pct: total ? Math.round((count / total) * 100) : 0 }
   })
@@ -245,6 +254,11 @@ const byHour = computed(() => {
           />
         </div>
         <ColumnChart :items="series" />
+        <ul class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
+          <li v-for="s in typeSegments" :key="s.label" class="flex items-center gap-1.5">
+            <span class="size-2.5 rounded-full" :class="s.bar" />{{ s.label }}
+          </li>
+        </ul>
         <UButton size="xs" variant="link" color="neutral" :icon="showTable ? 'i-lucide-chart-column' : 'i-lucide-table'" @click="showTable = !showTable">
           {{ showTable ? 'Masquer le tableau' : 'Voir en tableau' }}
         </UButton>
@@ -254,8 +268,11 @@ const byHour = computed(() => {
               <th class="py-1 font-medium">
                 {{ granularity === 'week' ? 'Semaine du' : 'Mois' }}
               </th>
+              <th v-for="t in typeSegments" :key="t.label" class="py-1 font-medium text-right">
+                {{ t.label }}
+              </th>
               <th class="py-1 font-medium text-right">
-                Réveils
+                Total
               </th>
             </tr>
           </thead>
@@ -264,7 +281,10 @@ const byHour = computed(() => {
               <td class="py-1">
                 {{ s.label }}
               </td>
-              <td class="py-1 text-right tabular-nums">
+              <td v-for="(n, i) in s.counts" :key="i" class="py-1 text-right tabular-nums text-muted">
+                {{ n }}
+              </td>
+              <td class="py-1 text-right tabular-nums font-medium">
                 {{ s.value }}
               </td>
             </tr>

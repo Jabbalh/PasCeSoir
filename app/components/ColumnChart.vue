@@ -1,7 +1,10 @@
 <script setup lang="ts">
-/** Histogramme vertical simple (une seule série) : barres fines, extrémités arrondies, infobulle au survol/tap */
+/**
+ * Histogramme vertical : barres fines, extrémités arrondies, infobulle au survol/tap.
+ * Avec `segments`, la barre est empilée (de bas en haut, une classe de couleur par segment).
+ */
 const props = defineProps<{
-  items: { key: string, label: string, value: number, tooltip: string }[]
+  items: { key: string, label: string, value: number, tooltip: string, segments?: { value: number, class: string }[] }[]
 }>()
 
 const max = computed(() => Math.max(1, ...props.items.map(i => i.value)))
@@ -50,6 +53,20 @@ watch(() => props.items, async () => {
               :aria-label="item.tooltip"
             >
               <span
+                v-if="item.segments"
+                class="w-3/5 max-w-6 flex flex-col-reverse gap-px rounded-t-[4px] overflow-hidden transition-opacity group-hover:opacity-80 group-focus-visible:ring-2 ring-primary/50"
+                :style="{ height: item.value ? `${(item.value / ticks.top) * 100}%` : '0' }"
+              >
+                <span
+                  v-for="(s, i) in item.segments.filter(s => s.value)"
+                  :key="i"
+                  class="w-full shrink-0"
+                  :class="s.class"
+                  :style="{ flexGrow: s.value, flexBasis: 0 }"
+                />
+              </span>
+              <span
+                v-else
                 class="w-3/5 max-w-6 rounded-t-[4px] bg-primary transition-opacity group-hover:opacity-80 group-focus-visible:ring-2 ring-primary/50"
                 :style="{ height: item.value ? `${(item.value / ticks.top) * 100}%` : '0' }"
               />
