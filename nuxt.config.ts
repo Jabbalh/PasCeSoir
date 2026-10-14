@@ -10,6 +10,11 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
+  // Site 100 % statique dans .output/public (sinon Nitro choisit le preset vercel-static sur Vercel)
+  nitro: {
+    preset: 'static'
+  },
+
   app: {
     head: {
       htmlAttrs: { lang: 'fr' },
