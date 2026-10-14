@@ -40,14 +40,9 @@ export function useJournalActions() {
       _dirty: 1,
       _lmod: Date.now()
     }
-    // Options par défaut : créées localement pour fonctionner aussi hors connexion
-    const defaults = [
-      ...DEFAULT_REASONS.map((label, i) => ({ kind: 'reason' as const, label, position: i + 1 })),
-      ...DEFAULT_ACTIONS.map((label, i) => ({ kind: 'action' as const, label, position: i + 1 }))
-    ]
-    await db.transaction('rw', [db.journals, db.members, db.options], async () => {
+    // Aucune raison ni action par défaut : chaque journal construit ses propres listes
+    await db.transaction('rw', db.journals, db.members, async () => {
       await db.journals.add(journal)
-      await db.options.bulkAdd(defaults.map(d => newOption(journal.id, d.kind, d.label, d.position)))
       await db.members.put({ key: `${journal.id}:${userId}`, journal_id: journal.id, user_id: userId, role: 'owner', display_name: user.value!.email.split('@')[0] ?? '' })
     })
     schedule(0)

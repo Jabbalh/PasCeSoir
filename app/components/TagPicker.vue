@@ -44,7 +44,10 @@ async function addCustom() {
 
 <template>
   <div class="space-y-2">
-    <div class="flex flex-wrap gap-2">
+    <p v-if="!allOptions.length" class="text-sm text-muted">
+      Liste vide pour l'instant : saisissez un premier choix ci-dessous, il sera proposé les prochaines fois.
+    </p>
+    <div v-else class="flex flex-wrap gap-2">
       <UButton
         v-for="opt in allOptions"
         :key="opt.id"

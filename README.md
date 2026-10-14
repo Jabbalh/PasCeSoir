@@ -9,7 +9,7 @@ Journal des réveils nocturnes d'un enfant — PWA mobile, utilisable hors conne
 ## Fonctionnalités
 
 - **Gros bouton « RÉVEIL »** : un appui = un réveil horodaté (vibration + toast « Compléter / Annuler »)
-- **Compléter un réveil** : date/heure, raisons, actions (suggestions + saisie libre), commentaire en texte riche (gras, italique, listes…), auteur enregistré automatiquement
+- **Compléter un réveil** : date/heure, raisons et actions choisies dans les listes du journal (paramétrables dans les réglages, vides à la création), commentaire en texte riche (gras, italique, listes…), auteur enregistré automatiquement
 - **Nuit en cours + historique** groupé par nuit (une nuit = 14h → 14h le lendemain)
 - **Statistiques** sur une période (préréglages ou date à date) : réveils par semaine / par mois, top 10 des raisons, répartition horaire
 - **Partage** : lien d'invitation `/rejoindre/<jeton>` → la personne crée un compte et rejoint le journal
