@@ -102,6 +102,19 @@ const topReasons = computed(() => {
   return { top, withoutReason, max: Math.max(1, ...top.map(t => t.value)) }
 })
 
+/** Répartition lever / réveil nocturne (pourcentages sur l'ensemble des réveils de la période) */
+const byType = computed(() => {
+  const total = inRange.value.length
+  const segments = [
+    ...WAKE_TYPES.map((t, i) => ({ ...t, bar: i === 0 ? 'bg-warning' : 'bg-primary' })),
+    { value: null, label: 'Non renseigné', icon: 'i-lucide-circle-help', bar: 'bg-accented' }
+  ].map((s) => {
+    const count = inRange.value.filter(({ w }) => (w.wake_type ?? null) === s.value).length
+    return { ...s, count, pct: total ? Math.round((count / total) * 100) : 0 }
+  })
+  return { total, segments }
+})
+
 /** Répartition par heure de la nuit (18h -> 12h) */
 const byHour = computed(() => {
   const hours = [18, 19, 20, 21, 22, 23, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
@@ -188,6 +201,35 @@ const byHour = computed(() => {
           </p>
         </div>
       </div>
+
+      <!-- Lever / nocturne -->
+      <UCard :ui="{ body: 'p-3 sm:p-4 space-y-3' }">
+        <h2 class="font-semibold">
+          Lever ou réveil nocturne
+        </h2>
+        <p v-if="!byType.total" class="text-sm text-muted">
+          Aucun réveil sur cette période.
+        </p>
+        <template v-else>
+          <div class="flex h-3 rounded-full bg-elevated overflow-hidden" role="img" :aria-label="byType.segments.map(s => `${s.label} : ${s.count}`).join(', ')">
+            <div
+              v-for="s in byType.segments.filter(s => s.count)"
+              :key="s.label"
+              class="h-full"
+              :class="s.bar"
+              :style="{ width: `${(s.count / byType.total) * 100}%` }"
+            />
+          </div>
+          <ul class="space-y-1.5 text-sm">
+            <li v-for="s in byType.segments" :key="s.label" class="flex items-center gap-2">
+              <span class="size-2.5 rounded-full shrink-0" :class="s.bar" />
+              <UIcon :name="s.icon" class="size-4 text-muted" />
+              <span class="flex-1">{{ s.label }}</span>
+              <span class="tabular-nums text-muted"><strong class="text-default">{{ s.count }}</strong> · {{ s.pct }} %</span>
+            </li>
+          </ul>
+        </template>
+      </UCard>
 
       <!-- Évolution -->
       <UCard :ui="{ body: 'p-3 sm:p-4 space-y-3' }">

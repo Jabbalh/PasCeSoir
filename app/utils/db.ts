@@ -34,10 +34,20 @@ export interface JournalOption extends SyncFields {
   deleted_at: string | null
 }
 
+/** Lever du matin ou réveil nocturne */
+export type WakeType = 'lever' | 'nocturne'
+
+export const WAKE_TYPES: { value: WakeType, label: string, icon: string }[] = [
+  { value: 'lever', label: 'Lever', icon: 'i-lucide-sunrise' },
+  { value: 'nocturne', label: 'Réveil nocturne', icon: 'i-lucide-moon' }
+]
+
 export interface Wakeup extends SyncFields {
   id: string
   journal_id: string
   woke_at: string
+  /** vide tant que non renseigné (absent sur les lignes locales antérieures) */
+  wake_type?: WakeType | null
   reason_ids: string[]
   action_ids: string[]
   comment: string

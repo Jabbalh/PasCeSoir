@@ -60,6 +60,7 @@ export function useJournalActions() {
       id: crypto.randomUUID(),
       journal_id: journalId,
       woke_at: wokeAt.toISOString(),
+      wake_type: null,
       reason_ids: [],
       action_ids: [],
       comment: '',
@@ -75,7 +76,7 @@ export function useJournalActions() {
     return wakeup
   }
 
-  async function updateWakeup(id: string, patch: Partial<Pick<Wakeup, 'woke_at' | 'reason_ids' | 'action_ids' | 'comment'>>) {
+  async function updateWakeup(id: string, patch: Partial<Pick<Wakeup, 'woke_at' | 'wake_type' | 'reason_ids' | 'action_ids' | 'comment'>>) {
     await db.wakeups.update(id, { ...patch, _dirty: 1, _lmod: Date.now() })
     schedule()
   }

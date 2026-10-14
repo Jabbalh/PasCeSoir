@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Wakeup } from '~/utils/db'
+import type { Wakeup, WakeType } from '~/utils/db'
 
 const route = useRoute()
 const router = useRouter()
@@ -18,6 +18,7 @@ const original = ref<Wakeup | null>(null)
 const notFound = ref(false)
 const form = reactive({
   wokeAt: toLocalInput(new Date()),
+  wakeType: null as WakeType | null,
   reasonIds: [] as string[],
   actionIds: [] as string[],
   comment: ''
@@ -33,6 +34,7 @@ onMounted(async () => {
   }
   original.value = w
   form.wokeAt = toLocalInput(w.woke_at)
+  form.wakeType = w.wake_type ?? null
   form.reasonIds = [...w.reason_ids]
   form.actionIds = [...w.action_ids]
   form.comment = w.comment
@@ -58,6 +60,7 @@ async function save() {
   try {
     const patch = {
       woke_at: date.toISOString(),
+      wake_type: form.wakeType,
       reason_ids: [...form.reasonIds],
       action_ids: [...form.actionIds],
       comment: form.comment === '<p></p>' ? '' : form.comment
@@ -119,6 +122,23 @@ async function remove() {
     <form class="space-y-6" @submit.prevent="save">
       <UFormField label="Date et heure du réveil" required>
         <UInput v-model="form.wokeAt" type="datetime-local" size="xl" class="w-full" required />
+      </UFormField>
+
+      <UFormField label="Type de réveil">
+        <div class="flex flex-wrap gap-2">
+          <UButton
+            v-for="t in WAKE_TYPES"
+            :key="t.value"
+            size="md"
+            :color="form.wakeType === t.value ? 'primary' : 'neutral'"
+            :variant="form.wakeType === t.value ? 'solid' : 'outline'"
+            :icon="t.icon"
+            class="rounded-full"
+            @click="form.wakeType = form.wakeType === t.value ? null : t.value"
+          >
+            {{ t.label }}
+          </UButton>
+        </div>
       </UFormField>
 
       <UFormField label="Raison(s) du réveil">

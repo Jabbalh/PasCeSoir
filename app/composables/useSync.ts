@@ -11,7 +11,7 @@ let running: Promise<void> | null = null
 let rerun = false
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
-const WAKEUP_FIELDS = ['id', 'journal_id', 'woke_at', 'reason_ids', 'action_ids', 'comment', 'created_by', 'created_at', 'deleted_at'] as const
+const WAKEUP_FIELDS = ['id', 'journal_id', 'woke_at', 'wake_type', 'reason_ids', 'action_ids', 'comment', 'created_by', 'created_at', 'deleted_at'] as const
 const OPTION_FIELDS = ['id', 'journal_id', 'kind', 'label', 'position', 'created_at', 'deleted_at'] as const
 /** Marge de recouvrement pour ne rater aucune ligne commitée en retard */
 const CURSOR_OVERLAP_MS = 60_000
@@ -180,7 +180,7 @@ export function useSync() {
           if (row.deleted_at && name === 'wakeups') await table.delete(row.id)
           else if (name === 'wakeups') {
             // tolère une ligne à l'ancien format (serveur pas encore migré)
-            await table.put({ ...row, reason_ids: row.reason_ids ?? [], action_ids: row.action_ids ?? [], _dirty: 0, _lmod: local?._lmod ?? 0 })
+            await table.put({ ...row, wake_type: row.wake_type ?? null, reason_ids: row.reason_ids ?? [], action_ids: row.action_ids ?? [], _dirty: 0, _lmod: local?._lmod ?? 0 })
           } else await table.put({ ...row, _dirty: 0, _lmod: local?._lmod ?? 0 })
         }
       })

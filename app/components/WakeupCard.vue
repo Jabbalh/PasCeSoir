@@ -9,6 +9,7 @@ const props = defineProps<{
 }>()
 
 const incomplete = computed(() => !props.wakeup.reason_ids.length && !props.wakeup.action_ids.length && !props.wakeup.comment)
+const wakeType = computed(() => WAKE_TYPES.find(t => t.value === props.wakeup.wake_type))
 const commentText = computed(() => props.wakeup.comment.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim())
 </script>
 
@@ -25,6 +26,9 @@ const commentText = computed(() => props.wakeup.comment.replace(/<[^>]+>/g, ' ')
       <div class="min-w-0 flex-1">
         <p v-if="showDate" class="text-xs text-muted">
           {{ formatDateTime(wakeup.woke_at) }}
+        </p>
+        <p v-if="wakeType" class="text-sm font-medium flex items-center gap-1">
+          <UIcon :name="wakeType.icon" class="size-3.5" /> {{ wakeType.label }}
         </p>
         <p class="text-xs text-muted flex items-center gap-1">
           <UIcon name="i-lucide-user" class="size-3" /> {{ author }}
