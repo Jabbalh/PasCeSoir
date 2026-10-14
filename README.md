@@ -2,6 +2,8 @@
 
 Journal des réveils nocturnes d'un enfant — PWA mobile, utilisable hors connexion, partagée entre parents.
 
+**En ligne** : https://pas-ce-soir.vercel.app (déploiement automatique à chaque push sur `main`)
+
 **Stack** : Nuxt 4 (SPA) · Nuxt UI 4 · Tailwind CSS 4 · Supabase (auth + Postgres) · Dexie (IndexedDB) · Vite PWA · Vercel
 
 ## Fonctionnalités
