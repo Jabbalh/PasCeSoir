@@ -155,7 +155,8 @@ export function useJournal(journalId: Ref<string>) {
     journal.value?.created_by === user.value?.id
     || members.value.some(m => m.user_id === user.value?.id && m.role === 'owner'))
 
-  function authorName(userId: string) {
+  function authorName(userId: string | null) {
+    if (!userId) return 'Compte supprimé'
     if (userId === user.value?.id) return 'Moi'
     return members.value.find(m => m.user_id === userId)?.display_name ?? 'Ancien membre'
   }

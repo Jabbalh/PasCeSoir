@@ -41,7 +41,8 @@ export interface Wakeup extends SyncFields {
   reason_ids: string[]
   action_ids: string[]
   comment: string
-  created_by: string
+  /** vide si le compte de l'auteur a été supprimé */
+  created_by: string | null
   created_at: string
   updated_at: string
   deleted_at: string | null
@@ -69,6 +70,13 @@ export type AppDb = Dexie & {
 }
 
 const instances = new Map<string, AppDb>()
+
+/** Supprime définitivement la base locale d'un utilisateur */
+export async function deleteDb(userId: string) {
+  const db = openDb(userId)
+  instances.delete(userId)
+  await db.delete()
+}
 
 /** Une base IndexedDB par utilisateur : pas de mélange de données entre comptes */
 export function openDb(userId: string): AppDb {

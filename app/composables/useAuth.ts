@@ -156,5 +156,21 @@ export function useAuth() {
     }
   }
 
-  return { user, isAdmin, ready, init, signIn, signUp, signOut, resetPassword, updatePassword }
+  /**
+   * Suppression définitive du compte (côté serveur), puis effacement des données locales.
+   * Les journaux possédés sont supprimés pour tous ; ailleurs, seule l'adhésion disparaît.
+   */
+  async function deleteAccount() {
+    const userId = user.value?.id
+    if (!userId) return
+    const { error } = await supabase.rpc('delete_my_account')
+    if (error) throw error
+    await signOut()
+    try {
+      await deleteDb(userId)
+      for (const key of Object.keys(localStorage)) if (key.startsWith('pcs:')) localStorage.removeItem(key)
+    } catch { /* stockage local indisponible : rien à effacer */ }
+  }
+
+  return { user, isAdmin, ready, init, deleteAccount, signIn, signUp, signOut, resetPassword, updatePassword }
 }
