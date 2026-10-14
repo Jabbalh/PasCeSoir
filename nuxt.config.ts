@@ -52,7 +52,8 @@ export default defineNuxtConfig({
   },
 
   pwa: {
-    registerType: 'autoUpdate',
+    // Nouvelle version : on demande à l'utilisateur avant de recharger (évite de perdre une saisie)
+    registerType: 'prompt',
     manifest: {
       name: 'Pas ce soir — Journal des réveils',
       short_name: 'Pas ce soir',
@@ -77,7 +78,10 @@ export default defineNuxtConfig({
       navigateFallbackDenylist: [/^\/api\//]
     },
     client: {
-      installPrompt: true
+      // bandeau d'installation maison à la place de la mini-barre native
+      installPrompt: true,
+      // une PWA reste ouverte longtemps : recherche de mise à jour toutes les heures
+      periodicSyncForUpdates: 3600
     },
     devOptions: {
       enabled: false,

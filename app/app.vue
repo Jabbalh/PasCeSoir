@@ -10,6 +10,9 @@ watch(user, (u) => {
 <template>
   <UApp :toaster="{ position: 'top-center', duration: 4000 }">
     <NuxtPwaManifest />
+    <ClientOnly>
+      <PwaPrompts />
+    </ClientOnly>
     <NuxtLayout>
       <NuxtPage />
     </NuxtLayout>
