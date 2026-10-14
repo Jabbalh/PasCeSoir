@@ -38,11 +38,6 @@ async function saveInfo() {
 const shareUrl = computed(() => journal.value?.share_token ? `${location.origin}/rejoindre/${journal.value.share_token}` : '')
 const sharing = ref(false)
 
-function randomToken() {
-  const bytes = crypto.getRandomValues(new Uint8Array(18))
-  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
-}
-
 async function setShareToken(token: string | null) {
   sharing.value = true
   try {
@@ -61,13 +56,9 @@ async function setShareToken(token: string | null) {
 
 async function share() {
   const text = `Rejoins le journal des nuits de ${journal.value?.child_name || 'notre enfant'} sur Pas ce soir`
-  if (navigator.share) {
-    try {
-      await navigator.share({ title: 'Pas ce soir', text, url: shareUrl.value })
-      return
-    } catch { /* partage annulé : on copie */ }
-  }
-  await copy()
+  const result = await shareOrCopy(shareUrl.value, 'Pas ce soir', text)
+  if (result === 'copied') toast.add({ title: 'Lien copié', icon: 'i-lucide-clipboard-check', color: 'success' })
+  if (result === 'failed') toast.add({ title: 'Copie impossible', description: shareUrl.value, color: 'warning' })
 }
 
 async function copy() {

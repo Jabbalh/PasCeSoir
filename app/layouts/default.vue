@@ -2,7 +2,7 @@
 import type { DropdownMenuItem } from '@nuxt/ui'
 
 const route = useRoute()
-const { user, signOut } = useAuth()
+const { user, isAdmin, signOut } = useAuth()
 const { pendingCount } = useSync()
 const toast = useToast()
 
@@ -33,7 +33,8 @@ const userMenu = computed<DropdownMenuItem[][]>(() => [
   [{ label: user.value?.email ?? '', type: 'label' }],
   [
     { label: 'Mes journaux', icon: 'i-lucide-book-heart', to: '/' },
-    { label: 'Mon profil', icon: 'i-lucide-user', to: '/profil' }
+    { label: 'Mon profil', icon: 'i-lucide-user', to: '/profil' },
+    ...(isAdmin.value ? [{ label: 'Administration', icon: 'i-lucide-shield-check', to: '/admin' }] : [])
   ],
   [{ label: 'Se déconnecter', icon: 'i-lucide-log-out', color: 'error', onSelect: logout }]
 ])

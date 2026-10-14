@@ -28,7 +28,7 @@ async function submit() {
       await signIn(form.email, form.password)
       await navigateTo(redirectTo.value)
     } else if (mode.value === 'signup') {
-      const { needsConfirmation } = await signUp(form.email, form.password, form.displayName, inviteToken.value)
+      const { needsConfirmation } = await signUp(form.email, form.password, form.displayName, { journal: inviteToken.value })
       if (needsConfirmation) {
         toast.add({
           title: 'Compte créé',
