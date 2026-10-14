@@ -11,7 +11,15 @@ const form = reactive({ email: '', password: '', displayName: '' })
 
 const redirectTo = computed(() =>
   typeof route.query.redirect === 'string' && route.query.redirect.startsWith('/') ? route.query.redirect : '/')
-const isInvite = computed(() => redirectTo.value.startsWith('/rejoindre/'))
+/** Jeton d'invitation : seule voie d'inscription (contrôlée côté serveur) */
+const inviteToken = computed(() => redirectTo.value.match(/^\/rejoindre\/([^/?#]+)/)?.[1])
+const isInvite = computed(() => !!inviteToken.value)
+const tabs = computed(() => isInvite.value
+  ? [{ label: 'Créer un compte', value: 'signup' }, { label: `J'ai déjà un compte`, value: 'login' }]
+  : [])
+
+// Arrivée par une invitation : on propose d'abord la création de compte
+if (isInvite.value) mode.value = 'signup'
 
 async function submit() {
   loading.value = true
@@ -20,7 +28,7 @@ async function submit() {
       await signIn(form.email, form.password)
       await navigateTo(redirectTo.value)
     } else if (mode.value === 'signup') {
-      const { needsConfirmation } = await signUp(form.email, form.password, form.displayName)
+      const { needsConfirmation } = await signUp(form.email, form.password, form.displayName, inviteToken.value)
       if (needsConfirmation) {
         toast.add({
           title: 'Compte créé',
@@ -58,14 +66,17 @@ async function submit() {
     />
 
     <UTabs
-      v-if="mode !== 'reset'"
+      v-if="mode !== 'reset' && tabs.length"
       v-model="mode"
-      :items="[{ label: 'Connexion', value: 'login' }, { label: 'Créer un compte', value: 'signup' }]"
+      :items="tabs"
       :content="false"
       class="mb-4"
     />
-    <h2 v-else class="font-semibold mb-4">
+    <h2 v-else-if="mode === 'reset'" class="font-semibold mb-4">
       Mot de passe oublié
+    </h2>
+    <h2 v-else class="font-semibold mb-4">
+      Connexion
     </h2>
 
     <form class="space-y-4" @submit.prevent="submit">
@@ -106,6 +117,9 @@ async function submit() {
       <UButton v-else-if="mode === 'reset'" variant="link" color="neutral" @click="mode = 'login'">
         Retour à la connexion
       </UButton>
+      <p v-if="!isInvite && mode === 'login'" class="text-xs text-muted mt-3">
+        Pas encore de compte ? L'inscription se fait uniquement via le lien d'invitation envoyé par un membre d'un journal.
+      </p>
     </div>
   </UCard>
 </template>

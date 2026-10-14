@@ -78,13 +78,18 @@ export function useAuth() {
     if (error) throw error
   }
 
-  async function signUp(email: string, password: string, displayName: string) {
+  /**
+   * Inscription : réservée aux invitations (jeton du lien de partage) ou aux emails
+   * autorisés côté serveur. Le jeton fait aussi rejoindre le journal automatiquement.
+   */
+  async function signUp(email: string, password: string, displayName: string, inviteToken?: string) {
+    const back = inviteToken ? `?redirect=${encodeURIComponent(`/rejoindre/${inviteToken}`)}` : ''
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { display_name: displayName },
-        emailRedirectTo: `${location.origin}/connexion`
+        data: { display_name: displayName, ...(inviteToken ? { invite_token: inviteToken } : {}) },
+        emailRedirectTo: `${location.origin}/connexion${back}`
       }
     })
     if (error) throw error
