@@ -1,0 +1,82 @@
+// https://nuxt.com/docs/api/configuration/nuxt-config
+export default defineNuxtConfig({
+  compatibilityDate: '2026-10-01',
+  devtools: { enabled: true },
+
+  // SPA : indispensable pour un fonctionnement hors connexion complet (PWA)
+  ssr: false,
+
+  modules: ['@nuxt/ui', '@vite-pwa/nuxt'],
+
+  css: ['~/assets/css/main.css'],
+
+  app: {
+    head: {
+      htmlAttrs: { lang: 'fr' },
+      title: 'Pas ce soir',
+      meta: [
+        { name: 'viewport', content: 'width=device-width, initial-scale=1, viewport-fit=cover' },
+        { name: 'description', content: 'Journal des réveils nocturnes de votre enfant' },
+        { name: 'theme-color', content: '#1e1b4b' },
+        { name: 'apple-mobile-web-app-capable', content: 'yes' },
+        { name: 'apple-mobile-web-app-status-bar-style', content: 'black-translucent' }
+      ],
+      link: [
+        { rel: 'icon', href: '/favicon.ico', sizes: '48x48' },
+        { rel: 'icon', href: '/icon.svg', type: 'image/svg+xml' },
+        { rel: 'apple-touch-icon', href: '/apple-touch-icon-180x180.png' }
+      ]
+    }
+  },
+
+  // Icônes embarquées dans le bundle : indispensable hors connexion
+  icon: {
+    clientBundle: { scan: true, sizeLimitKb: 512 },
+    provider: 'none'
+  },
+
+  colorMode: {
+    preference: 'dark'
+  },
+
+  runtimeConfig: {
+    public: {
+      supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL || '',
+      supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_KEY || ''
+    }
+  },
+
+  pwa: {
+    registerType: 'autoUpdate',
+    manifest: {
+      name: 'Pas ce soir — Journal des réveils',
+      short_name: 'Pas ce soir',
+      description: 'Journal des réveils nocturnes de votre enfant',
+      lang: 'fr',
+      theme_color: '#1e1b4b',
+      background_color: '#0f0e24',
+      display: 'standalone',
+      orientation: 'portrait',
+      start_url: '/',
+      icons: [
+        { src: 'pwa-64x64.png', sizes: '64x64', type: 'image/png' },
+        { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
+        { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },
+        { src: 'maskable-icon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
+      ]
+    },
+    workbox: {
+      navigateFallback: '/',
+      globPatterns: ['**/*.{js,css,html,png,svg,ico,woff2}'],
+      // Les appels Supabase ne sont jamais mis en cache par le SW : la synchro est gérée par l'app (IndexedDB)
+      navigateFallbackDenylist: [/^\/api\//]
+    },
+    client: {
+      installPrompt: true
+    },
+    devOptions: {
+      enabled: false,
+      type: 'module'
+    }
+  }
+})
