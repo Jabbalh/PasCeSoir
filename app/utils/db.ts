@@ -19,12 +19,27 @@ export interface Journal extends SyncFields {
   deleted_at: string | null
 }
 
+export type OptionKind = 'reason' | 'action'
+
+/** Raison de réveil ou action, paramétrable par journal */
+export interface JournalOption extends SyncFields {
+  id: string
+  journal_id: string
+  kind: OptionKind
+  label: string
+  position: number
+  created_at: string
+  updated_at: string
+  /** option archivée : masquée du choix, conservée pour l'historique */
+  deleted_at: string | null
+}
+
 export interface Wakeup extends SyncFields {
   id: string
   journal_id: string
   woke_at: string
-  reasons: string[]
-  actions: string[]
+  reason_ids: string[]
+  action_ids: string[]
   comment: string
   created_by: string
   created_at: string
@@ -47,6 +62,7 @@ export interface Meta {
 
 export type AppDb = Dexie & {
   journals: EntityTable<Journal, 'id'>
+  options: EntityTable<JournalOption, 'id'>
   wakeups: EntityTable<Wakeup, 'id'>
   members: EntityTable<Member, 'key'>
   meta: EntityTable<Meta, 'key'>
@@ -64,6 +80,25 @@ export function openDb(userId: string): AppDb {
       wakeups: 'id, journal_id, [journal_id+woke_at], _dirty',
       members: 'key, journal_id',
       meta: 'key'
+    })
+    // v2 : options par journal ; les réveils (libellés -> identifiants) sont rechargés depuis le serveur
+    db.version(2).stores({
+      options: 'id, journal_id, _dirty'
+    }).upgrade(async (tx) => {
+      await tx.table('wakeups').filter(w => !w._dirty).delete()
+      await tx.table('meta').clear()
+    })
+    // v3 : nouveau rechargement complet, des lignes à l'ancien format ayant pu être tirées
+    // avant la migration serveur. Les modifications non envoyées sont conservées.
+    db.version(3).stores({}).upgrade(async (tx) => {
+      await tx.table('wakeups').filter(w => !w._dirty).delete()
+      await tx.table('wakeups').toCollection().modify((w) => {
+        w.reason_ids ??= []
+        w.action_ids ??= []
+        delete w.reasons
+        delete w.actions
+      })
+      await tx.table('meta').clear()
     })
     instances.set(userId, db)
   }

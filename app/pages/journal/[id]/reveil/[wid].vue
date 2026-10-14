@@ -11,15 +11,15 @@ const wakeupId = computed(() => route.params.wid as string)
 const isNew = computed(() => wakeupId.value === 'nouveau')
 
 const { authorName } = useJournal(journalId)
-const { data: allWakeups } = useWakeups(journalId)
-const { addWakeup, updateWakeup, deleteWakeup, restoreWakeup } = useJournalActions()
+const { reasons, actions, labelOf } = useOptions(journalId)
+const { addWakeup, updateWakeup, deleteWakeup, restoreWakeup, addOption } = useJournalActions()
 
 const original = ref<Wakeup | null>(null)
 const notFound = ref(false)
 const form = reactive({
   wokeAt: toLocalInput(new Date()),
-  reasons: [] as string[],
-  actions: [] as string[],
+  reasonIds: [] as string[],
+  actionIds: [] as string[],
   comment: ''
 })
 
@@ -33,20 +33,14 @@ onMounted(async () => {
   }
   original.value = w
   form.wokeAt = toLocalInput(w.woke_at)
-  form.reasons = [...w.reasons]
-  form.actions = [...w.actions]
+  form.reasonIds = [...w.reason_ids]
+  form.actionIds = [...w.action_ids]
   form.comment = w.comment
 })
 
-/** Suggestions : valeurs par défaut + celles déjà utilisées dans ce journal, les plus fréquentes d'abord */
-function suggestions(defaults: string[], field: 'reasons' | 'actions') {
-  const freq = new Map<string, number>()
-  for (const w of allWakeups.value) for (const v of w[field]) freq.set(v, (freq.get(v) ?? 0) + 1)
-  const used = [...freq.entries()].sort((a, b) => b[1] - a[1]).map(([v]) => v)
-  return [...new Set([...used, ...defaults])]
-}
-const reasonOptions = computed(() => suggestions(DEFAULT_REASONS, 'reasons'))
-const actionOptions = computed(() => suggestions(DEFAULT_ACTIONS, 'actions'))
+/** « Autre… » : ajoute l'option au paramétrage du journal pour pouvoir la réutiliser */
+const createReason = async (label: string) => (await addOption(journalId.value, 'reason', label)).id
+const createAction = async (label: string) => (await addOption(journalId.value, 'action', label)).id
 
 function goBack() {
   if (window.history.state?.back) router.back()
@@ -64,8 +58,8 @@ async function save() {
   try {
     const patch = {
       woke_at: date.toISOString(),
-      reasons: [...form.reasons],
-      actions: [...form.actions],
+      reason_ids: [...form.reasonIds],
+      action_ids: [...form.actionIds],
       comment: form.comment === '<p></p>' ? '' : form.comment
     }
     if (isNew.value) {
@@ -128,11 +122,28 @@ async function remove() {
       </UFormField>
 
       <UFormField label="Raison(s) du réveil">
-        <TagPicker v-model="form.reasons" :options="reasonOptions" color="warning" placeholder="Autre raison…" />
+        <template #hint>
+          <ULink :to="`/journal/${journalId}/reglages#options`" class="text-xs text-muted">Gérer la liste</ULink>
+        </template>
+        <TagPicker
+          v-model="form.reasonIds"
+          :options="reasons"
+          :label-of="labelOf"
+          :create="createReason"
+          color="warning"
+          placeholder="Autre raison…"
+        />
       </UFormField>
 
       <UFormField label="Ce qui a été fait">
-        <TagPicker v-model="form.actions" :options="actionOptions" color="success" placeholder="Autre action…" />
+        <TagPicker
+          v-model="form.actionIds"
+          :options="actions"
+          :label-of="labelOf"
+          :create="createAction"
+          color="success"
+          placeholder="Autre action…"
+        />
       </UFormField>
 
       <UFormField label="Commentaire">

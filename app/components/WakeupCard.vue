@@ -4,10 +4,11 @@ import type { Wakeup } from '~/utils/db'
 const props = defineProps<{
   wakeup: Wakeup
   author: string
+  labelOf: (id: string) => string
   showDate?: boolean
 }>()
 
-const incomplete = computed(() => !props.wakeup.reasons.length && !props.wakeup.actions.length && !props.wakeup.comment)
+const incomplete = computed(() => !props.wakeup.reason_ids.length && !props.wakeup.action_ids.length && !props.wakeup.comment)
 const commentText = computed(() => props.wakeup.comment.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim())
 </script>
 
@@ -36,12 +37,12 @@ const commentText = computed(() => props.wakeup.comment.replace(/<[^>]+>/g, ' ')
       <UIcon v-else name="i-lucide-chevron-right" class="size-5 text-muted" />
     </div>
 
-    <div v-if="wakeup.reasons.length || wakeup.actions.length" class="flex flex-wrap gap-1.5 mt-2">
-      <UBadge v-for="r in wakeup.reasons" :key="`r-${r}`" color="warning" variant="subtle" size="sm">
-        {{ r }}
+    <div v-if="wakeup.reason_ids.length || wakeup.action_ids.length" class="flex flex-wrap gap-1.5 mt-2">
+      <UBadge v-for="r in wakeup.reason_ids" :key="`r-${r}`" color="warning" variant="subtle" size="sm">
+        {{ labelOf(r) }}
       </UBadge>
-      <UBadge v-for="a in wakeup.actions" :key="`a-${a}`" color="success" variant="subtle" size="sm" icon="i-lucide-hand-heart">
-        {{ a }}
+      <UBadge v-for="a in wakeup.action_ids" :key="`a-${a}`" color="success" variant="subtle" size="sm" icon="i-lucide-hand-heart">
+        {{ labelOf(a) }}
       </UBadge>
     </div>
     <p v-if="commentText" class="text-sm text-muted mt-2 line-clamp-2">

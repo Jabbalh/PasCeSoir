@@ -7,6 +7,18 @@ const { user } = useAuth()
 const { online, sync } = useSync()
 const { journal, members, isOwner } = useJournal(journalId)
 const { updateJournal } = useJournalActions()
+const { reasons, actions, archived } = useOptions(journalId)
+const { data: wakeups } = useWakeups(journalId)
+
+// --- Raisons / actions ---
+const optionTab = ref<'reason' | 'action'>('reason')
+const usage = computed(() => {
+  const map = new Map<string, number>()
+  for (const w of wakeups.value) {
+    for (const id of [...w.reason_ids, ...w.action_ids]) map.set(id, (map.get(id) ?? 0) + 1)
+  }
+  return map
+})
 
 // --- Informations ---
 const form = reactive({ name: '', child_name: '' })
@@ -156,6 +168,31 @@ function askDelete() {
           Enregistrer
         </UButton>
       </form>
+    </UCard>
+
+    <UCard id="options" class="scroll-mt-20">
+      <template #header>
+        <h2 class="font-semibold">
+          Raisons et actions
+        </h2>
+        <p class="text-sm text-muted">
+          Les choix proposés lors de la saisie d'un réveil. Touchez un libellé pour le renommer : l'historique est mis à jour.
+        </p>
+      </template>
+      <UTabs
+        v-model="optionTab"
+        :content="false"
+        :items="[{ label: `Raisons (${reasons.length})`, value: 'reason' }, { label: `Actions (${actions.length})`, value: 'action' }]"
+        class="mb-3"
+      />
+      <OptionsEditor
+        :key="optionTab"
+        :journal-id="journalId"
+        :kind="optionTab"
+        :options="optionTab === 'reason' ? reasons : actions"
+        :archived="archived"
+        :usage="usage"
+      />
     </UCard>
 
     <UCard>

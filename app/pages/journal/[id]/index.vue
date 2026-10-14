@@ -7,6 +7,7 @@ const toast = useToast()
 
 const { journal, loading, authorName } = useJournal(journalId)
 const { data: wakeups } = useWakeups(journalId)
+const { labelOf } = useOptions(journalId)
 const { addWakeup, deleteWakeup } = useJournalActions()
 
 onMounted(() => {
@@ -128,7 +129,7 @@ async function recordWakeup() {
         <span class="text-sm text-muted">{{ tonight.length }} réveil(s)</span>
       </div>
       <div v-if="tonight.length" class="space-y-2">
-        <WakeupCard v-for="w in tonight" :key="w.id" :wakeup="w" :author="authorName(w.created_by)" />
+        <WakeupCard v-for="w in tonight" :key="w.id" :wakeup="w" :author="authorName(w.created_by)" :label-of="labelOf" />
       </div>
       <p v-else class="text-sm text-muted text-center py-4 rounded-xl border border-dashed border-default">
         Aucun réveil pour l'instant. Bonne nuit ! 🌙
@@ -147,7 +148,7 @@ async function recordWakeup() {
             {{ list.length }}
           </UBadge>
         </div>
-        <WakeupCard v-for="w in list" :key="w.id" :wakeup="w" :author="authorName(w.created_by)" />
+        <WakeupCard v-for="w in list" :key="w.id" :wakeup="w" :author="authorName(w.created_by)" :label-of="labelOf" />
       </div>
       <UButton
         v-if="pastNights.length > visibleNights"

@@ -1,6 +1,16 @@
 <script setup lang="ts">
+interface PickerOption {
+  id: string
+  label: string
+}
+
 const props = defineProps<{
-  options: string[]
+  /** options actives du journal */
+  options: PickerOption[]
+  /** libellé d'un identifiant (pour les options archivées encore sélectionnées) */
+  labelOf: (id: string) => string
+  /** crée une nouvelle option dans le journal et renvoie son identifiant */
+  create: (label: string) => Promise<string>
   color?: 'primary' | 'warning' | 'success' | 'neutral'
   placeholder?: string
 }>()
@@ -8,23 +18,26 @@ const model = defineModel<string[]>({ required: true })
 
 const custom = ref('')
 
+/** Options actives + options archivées encore sélectionnées sur ce réveil */
 const allOptions = computed(() => {
-  const set = new Set(props.options)
-  for (const v of model.value) set.add(v)
-  return [...set]
+  const list = [...props.options]
+  for (const id of model.value) {
+    if (!list.some(o => o.id === id)) list.push({ id, label: props.labelOf(id) })
+  }
+  return list
 })
 
-function toggle(value: string) {
-  model.value = model.value.includes(value)
-    ? model.value.filter(v => v !== value)
-    : [...model.value, value]
+function toggle(id: string) {
+  model.value = model.value.includes(id)
+    ? model.value.filter(v => v !== id)
+    : [...model.value, id]
 }
 
-function addCustom() {
-  const value = custom.value.trim()
-  if (!value) return
-  const existing = allOptions.value.find(o => o.toLowerCase() === value.toLowerCase())
-  if (!model.value.includes(existing ?? value)) model.value = [...model.value, existing ?? value]
+async function addCustom() {
+  const label = custom.value.trim()
+  if (!label) return
+  const id = await props.create(label)
+  if (!model.value.includes(id)) model.value = [...model.value, id]
   custom.value = ''
 }
 </script>
@@ -34,15 +47,15 @@ function addCustom() {
     <div class="flex flex-wrap gap-2">
       <UButton
         v-for="opt in allOptions"
-        :key="opt"
+        :key="opt.id"
         size="md"
-        :color="model.includes(opt) ? (color ?? 'primary') : 'neutral'"
-        :variant="model.includes(opt) ? 'solid' : 'outline'"
-        :icon="model.includes(opt) ? 'i-lucide-check' : undefined"
+        :color="model.includes(opt.id) ? (color ?? 'primary') : 'neutral'"
+        :variant="model.includes(opt.id) ? 'solid' : 'outline'"
+        :icon="model.includes(opt.id) ? 'i-lucide-check' : undefined"
         class="rounded-full"
-        @click="toggle(opt)"
+        @click="toggle(opt.id)"
       >
-        {{ opt }}
+        {{ opt.label }}
       </UButton>
     </div>
     <form class="flex gap-2" @submit.prevent="addCustom">

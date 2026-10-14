@@ -3,6 +3,7 @@ const route = useRoute()
 const journalId = computed(() => route.params.id as string)
 const { journal } = useJournal(journalId)
 const { data: wakeups, loading } = useWakeups(journalId)
+const { labelOf } = useOptions(journalId)
 
 const today = toDateKey(new Date())
 const from = ref(toDateKey(addDays(new Date(), -29)))
@@ -90,14 +91,14 @@ const topReasons = computed(() => {
   const counts = new Map<string, number>()
   let withoutReason = 0
   for (const { w } of inRange.value) {
-    if (!w.reasons.length) withoutReason++
-    for (const r of w.reasons) counts.set(r, (counts.get(r) ?? 0) + 1)
+    if (!w.reason_ids.length) withoutReason++
+    for (const r of w.reason_ids) counts.set(r, (counts.get(r) ?? 0) + 1)
   }
   const total = inRange.value.length || 1
   const top = [...counts.entries()]
-    .sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0]))
+    .map(([id, value]) => ({ id, label: labelOf(id), value, pct: Math.round((value / total) * 100) }))
+    .sort((x, y) => y.value - x.value || x.label.localeCompare(y.label))
     .slice(0, 10)
-    .map(([label, value]) => ({ label, value, pct: Math.round((value / total) * 100) }))
   return { top, withoutReason, max: Math.max(1, ...top.map(t => t.value)) }
 })
 
@@ -238,7 +239,7 @@ const byHour = computed(() => {
           Aucune raison renseignée sur cette période.
         </p>
         <ol v-else class="space-y-2.5">
-          <li v-for="(r, i) in topReasons.top" :key="r.label">
+          <li v-for="(r, i) in topReasons.top" :key="r.id">
             <div class="flex items-baseline justify-between text-sm mb-1 gap-2">
               <span class="truncate"><span class="text-muted tabular-nums mr-1.5">{{ i + 1 }}.</span>{{ r.label }}</span>
               <span class="tabular-nums text-muted shrink-0"><strong class="text-default">{{ r.value }}</strong> · {{ r.pct }} %</span>

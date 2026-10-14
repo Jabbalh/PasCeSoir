@@ -1,7 +1,23 @@
-import type { Journal, Wakeup } from '~/utils/db'
+import type { Journal, JournalOption, OptionKind, Wakeup } from '~/utils/db'
 
 function nowIso() {
   return new Date().toISOString()
+}
+
+function newOption(journalId: string, kind: OptionKind, label: string, position: number): JournalOption {
+  const now = nowIso()
+  return {
+    id: crypto.randomUUID(),
+    journal_id: journalId,
+    kind,
+    label: label.trim(),
+    position,
+    created_at: now,
+    updated_at: now,
+    deleted_at: null,
+    _dirty: 1,
+    _lmod: Date.now()
+  }
 }
 
 export function useJournalActions() {
@@ -24,8 +40,14 @@ export function useJournalActions() {
       _dirty: 1,
       _lmod: Date.now()
     }
-    await db.transaction('rw', db.journals, db.members, async () => {
+    // Options par défaut : créées localement pour fonctionner aussi hors connexion
+    const defaults = [
+      ...DEFAULT_REASONS.map((label, i) => ({ kind: 'reason' as const, label, position: i + 1 })),
+      ...DEFAULT_ACTIONS.map((label, i) => ({ kind: 'action' as const, label, position: i + 1 }))
+    ]
+    await db.transaction('rw', [db.journals, db.members, db.options], async () => {
       await db.journals.add(journal)
+      await db.options.bulkAdd(defaults.map(d => newOption(journal.id, d.kind, d.label, d.position)))
       await db.members.put({ key: `${journal.id}:${userId}`, journal_id: journal.id, user_id: userId, role: 'owner', display_name: user.value!.email.split('@')[0] ?? '' })
     })
     schedule(0)
@@ -43,8 +65,8 @@ export function useJournalActions() {
       id: crypto.randomUUID(),
       journal_id: journalId,
       woke_at: wokeAt.toISOString(),
-      reasons: [],
-      actions: [],
+      reason_ids: [],
+      action_ids: [],
       comment: '',
       created_by: user.value!.id,
       created_at: now,
@@ -58,7 +80,7 @@ export function useJournalActions() {
     return wakeup
   }
 
-  async function updateWakeup(id: string, patch: Partial<Pick<Wakeup, 'woke_at' | 'reasons' | 'actions' | 'comment'>>) {
+  async function updateWakeup(id: string, patch: Partial<Pick<Wakeup, 'woke_at' | 'reason_ids' | 'action_ids' | 'comment'>>) {
     await db.wakeups.update(id, { ...patch, _dirty: 1, _lmod: Date.now() })
     schedule()
   }
@@ -74,7 +96,43 @@ export function useJournalActions() {
     schedule()
   }
 
-  return { createJournal, updateJournal, addWakeup, updateWakeup, deleteWakeup, restoreWakeup }
+  // --- Options (raisons / actions) ---
+
+  async function addOption(journalId: string, kind: OptionKind, label: string) {
+    const siblings = await db.options.where('journal_id').equals(journalId).filter(o => o.kind === kind).toArray()
+    // Une option archivée du même nom est restaurée plutôt que dupliquée
+    const existing = siblings.find(o => o.label.toLowerCase() === label.trim().toLowerCase())
+    if (existing) {
+      if (existing.deleted_at) await updateOption(existing.id, { deleted_at: null })
+      return existing
+    }
+    const option = newOption(journalId, kind, label, Math.max(0, ...siblings.map(o => o.position)) + 1)
+    await db.options.add(option)
+    schedule()
+    return option
+  }
+
+  async function updateOption(id: string, patch: Partial<Pick<JournalOption, 'label' | 'position' | 'deleted_at'>>) {
+    await db.options.update(id, { ...patch, _dirty: 1, _lmod: Date.now() })
+    schedule()
+  }
+
+  /** Réécrit les positions dans l'ordre donné (seules les lignes modifiées sont marquées à envoyer) */
+  async function reorderOptions(ordered: JournalOption[]) {
+    const lmod = Date.now()
+    await db.transaction('rw', db.options, async () => {
+      for (const [i, o] of ordered.entries()) {
+        if (o.position !== i + 1) await db.options.update(o.id, { position: i + 1, _dirty: 1, _lmod: lmod })
+      }
+    })
+    schedule()
+  }
+
+  return {
+    createJournal, updateJournal,
+    addWakeup, updateWakeup, deleteWakeup, restoreWakeup,
+    addOption, updateOption, reorderOptions
+  }
 }
 
 /** Journal + membres (réactif) */
@@ -120,4 +178,27 @@ export function useWakeups(journalId: Ref<string>) {
     [] as Wakeup[],
     [journalId]
   )
+}
+
+/** Raisons et actions d'un journal (réactif), triées par position */
+export function useOptions(journalId: Ref<string>) {
+  const db = useDb()
+  const { data: all } = useLiveQuery(
+    async () => (await db.options.where('journal_id').equals(journalId.value).toArray())
+      .sort((a, b) => a.position - b.position || a.label.localeCompare(b.label)),
+    [] as JournalOption[],
+    [journalId]
+  )
+
+  const byId = computed(() => new Map(all.value.map(o => [o.id, o])))
+  const reasons = computed(() => all.value.filter(o => o.kind === 'reason' && !o.deleted_at))
+  const actions = computed(() => all.value.filter(o => o.kind === 'action' && !o.deleted_at))
+  const archived = computed(() => all.value.filter(o => o.deleted_at))
+
+  /** Libellé d'une option (y compris archivée) */
+  function labelOf(id: string) {
+    return byId.value.get(id)?.label ?? '?'
+  }
+
+  return { all, byId, reasons, actions, archived, labelOf }
 }
