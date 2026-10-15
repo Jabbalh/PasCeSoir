@@ -79,7 +79,7 @@ Index : `(journal_id, updated_at)` pour la synchro, `(journal_id, woke_at)`.
 |---|---|---|
 | `id` | uuid PK | généré côté client |
 | `journal_id` | uuid → journals | cascade |
-| `kind` | text | `rituel`, `medication`, `alimentation`, `environnement` ou `autre` |
+| `kind` | text | `rituel`, `medication`, `soin`, `alimentation`, `environnement` ou `autre` |
 | `label` | text | nom de la démarche |
 | `start_date` | date | début (jour local) |
 | `end_date` | date, nullable | fin **incluse** ; `null` = en cours ; contrainte `end_date >= start_date` |
@@ -194,6 +194,7 @@ insert into public.signup_allowlist (email, note) values ('<email en minuscules>
 | `20261014000005_delete_account.sql` | auteur des réveils nullable, suppression de compte |
 | `20261014000006_wakeup_type.sql` | type de réveil (`lever` / `nocturne`) |
 | `20261015000000_approaches.sql` | démarches (rituel, médication…) de date à date, moments de la journée |
+| `20261016000000_approach_kind_soin.sql` | type de démarche `soin` (psychomotricien, ergothérapeute…) |
 
 ## 7. Base locale (IndexedDB)
 

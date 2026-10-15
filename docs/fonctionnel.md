@@ -21,7 +21,7 @@ Points clés :
 | **Type de réveil** | **Lever** (réveil du matin) ou **Réveil nocturne**. Vide par défaut. |
 | **Raison** | Cause du réveil (ex. « Cauchemar », « Faim »). Liste propre à chaque journal. |
 | **Action** | Ce qui a été fait (ex. « Câlin », « Biberon »). Liste propre à chaque journal. |
-| **Démarche** | Ce qui est mis en place pour améliorer les nuits, de date à date (sans date de fin = **en cours**) : type (**Rituel**, **Médication**, **Alimentation**, **Environnement**, **Autre**), nom, moment(s) de la journée, commentaire. |
+| **Démarche** | Ce qui est mis en place pour améliorer les nuits, de date à date (sans date de fin = **en cours**) : type (**Rituel**, **Médication**, **Soin** (psychomotricien, ergothérapeute, orthophoniste…), **Alimentation**, **Environnement**, **Autre**), nom, moment(s) de la journée, commentaire. |
 | **Nuit** | Période de **14h à 14h le lendemain**. Un réveil à 3h du matin le mardi appartient à la « nuit du lundi au mardi ». |
 | **Administrateur** | Utilisateur pouvant inviter de nouvelles personnes à utiliser l'application. |
 
@@ -106,7 +106,7 @@ Détail (`/journal/<id>/demarches/<id>` ou `/demarches/nouveau`) :
 
 | Champ | Règle |
 |---|---|
-| Type | Obligatoire : **Rituel**, **Médication**, **Alimentation**, **Environnement** ou **Autre** (liste fixe). |
+| Type | Obligatoire : **Rituel**, **Médication**, **Soin** (suivi par un professionnel : psychomotricien, ergothérapeute…), **Alimentation**, **Environnement** ou **Autre** (liste fixe). |
 | Nom | Obligatoire (ex. « Bain avant le coucher », « Mélatonine 1 mg »). |
 | Du | Obligatoire, aujourd'hui par défaut. |
 | Au | Facultatif, date **incluse**. Vide = **toujours en cours**. Boutons « Terminer aujourd'hui » / « Toujours en cours ». Doit suivre la date de début. |

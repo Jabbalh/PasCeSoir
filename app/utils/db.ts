@@ -59,12 +59,13 @@ export interface Wakeup extends SyncFields {
 }
 
 /** Type de démarche (liste fixe) */
-export type ApproachKind = 'rituel' | 'medication' | 'alimentation' | 'environnement' | 'autre'
+export type ApproachKind = 'rituel' | 'medication' | 'soin' | 'alimentation' | 'environnement' | 'autre'
 
 /** `bar` : couleur pleine (frise des statistiques) ; `soft` : pastille d'icône (classes écrites en entier pour Tailwind) */
-export const APPROACH_KINDS: { value: ApproachKind, label: string, icon: string, color: 'info' | 'error' | 'success' | 'secondary' | 'neutral', bar: string, soft: string }[] = [
+export const APPROACH_KINDS: { value: ApproachKind, label: string, icon: string, color: 'info' | 'error' | 'tertiary' | 'success' | 'secondary' | 'neutral', bar: string, soft: string }[] = [
   { value: 'rituel', label: 'Rituel', icon: 'i-lucide-repeat', color: 'info', bar: 'bg-info', soft: 'bg-info/15 text-info' },
   { value: 'medication', label: 'Médication', icon: 'i-lucide-pill', color: 'error', bar: 'bg-error', soft: 'bg-error/15 text-error' },
+  { value: 'soin', label: 'Soin', icon: 'i-lucide-stethoscope', color: 'tertiary', bar: 'bg-tertiary', soft: 'bg-tertiary/15 text-tertiary' },
   { value: 'alimentation', label: 'Alimentation', icon: 'i-lucide-utensils', color: 'success', bar: 'bg-success', soft: 'bg-success/15 text-success' },
   { value: 'environnement', label: 'Environnement', icon: 'i-lucide-bed', color: 'secondary', bar: 'bg-secondary', soft: 'bg-secondary/15 text-secondary' },
   { value: 'autre', label: 'Autre', icon: 'i-lucide-circle-dot', color: 'neutral', bar: 'bg-inverted/50', soft: 'bg-elevated text-muted' }

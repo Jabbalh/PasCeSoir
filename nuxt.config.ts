@@ -8,6 +8,11 @@ export default defineNuxtConfig({
 
   modules: ['@nuxt/ui', '@vite-pwa/nuxt'],
 
+  ui: {
+    // tertiary : couleur dédiée au type de démarche « Soin »
+    theme: { colors: ['primary', 'secondary', 'tertiary', 'success', 'info', 'warning', 'error'] }
+  },
+
   css: ['~/assets/css/main.css'],
 
   // Site 100 % statique dans .output/public (sinon Nitro choisit le preset vercel-static sur Vercel)
@@ -37,7 +42,7 @@ export default defineNuxtConfig({
   // Icônes embarquées dans le bundle : indispensable hors connexion
   icon: {
     // le scan ne couvre que les composants : icônes déclarées dans app/utils ajoutées à la main
-    clientBundle: { scan: true, icons: ['lucide:sunrise', 'lucide:moon', 'lucide:repeat', 'lucide:pill', 'lucide:utensils', 'lucide:bed', 'lucide:circle-dot'], sizeLimitKb: 512 },
+    clientBundle: { scan: true, icons: ['lucide:sunrise', 'lucide:moon', 'lucide:repeat', 'lucide:pill', 'lucide:stethoscope', 'lucide:utensils', 'lucide:bed', 'lucide:circle-dot'], sizeLimitKb: 512 },
     provider: 'none'
   },
 

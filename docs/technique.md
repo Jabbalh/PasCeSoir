@@ -37,7 +37,7 @@
 
 ```
 app/
-├── app.vue, app.config.ts        # racine, couleurs Nuxt UI (primary indigo, neutral slate)
+├── app.vue, app.config.ts        # racine, couleurs Nuxt UI (primary indigo, secondary pink, tertiary teal, neutral slate)
 ├── assets/css/main.css
 ├── components/
 │   ├── ApproachCard.vue          # carte d'une démarche dans la liste
@@ -183,6 +183,7 @@ Configuration dans `nuxt.config.ts` (`pwa`) :
 - Workbox précache `js, css, html, png, svg, ico, woff2` ; `navigateFallback: '/'`. Les appels Supabase ne sont **pas** mis en cache (gérés par l'application via IndexedDB).
 - Bandeau d'installation maison (`installPrompt: true`).
 - **Icônes** : embarquées dans le bundle (`icon.clientBundle`, `provider: 'none'`) pour fonctionner hors ligne. Le scan ne détecte que les icônes écrites dans les composants `.vue` : une icône référencée uniquement dans un fichier `.ts` (ex. `WAKE_TYPES`, `APPROACH_KINDS`) doit être ajoutée dans `icon.clientBundle.icons`.
+- **Couleurs** : `tertiary` est une couleur ajoutée (`ui.theme.colors` dans `nuxt.config.ts`, valeur dans `app.config.ts`) pour le type de démarche « Soin ». Chaque type de démarche a une couleur distincte : `info` (bleu) Rituel, `error` Médication, `tertiary` Soin, `success` Alimentation, `secondary` Environnement, `neutral` Autre.
 - Icônes de l'application : modifier `public/icon.svg` puis `npm run icons`.
 
 ## 10. Environnement et déploiement

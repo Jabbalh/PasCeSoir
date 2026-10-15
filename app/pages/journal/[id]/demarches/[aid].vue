@@ -151,7 +151,7 @@ async function remove() {
       </UFormField>
 
       <UFormField label="Nom" required>
-        <UInput v-model="form.label" size="xl" class="w-full" placeholder="Ex. Bain avant le coucher, mélatonine 1 mg…" required />
+        <UInput v-model="form.label" size="xl" class="w-full" placeholder="Ex. Bain avant le coucher, mélatonine 1 mg, psychomotricienne…" required />
       </UFormField>
 
       <div class="grid grid-cols-2 gap-3">
