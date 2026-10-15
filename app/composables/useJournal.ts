@@ -1,4 +1,4 @@
-import type { Journal, JournalOption, OptionKind, Wakeup } from '~/utils/db'
+import type { Approach, Journal, JournalOption, OptionKind, Wakeup } from '~/utils/db'
 
 function nowIso() {
   return new Date().toISOString()
@@ -124,10 +124,49 @@ export function useJournalActions() {
     schedule()
   }
 
+  // --- Démarches (rituels, médication…) ---
+
+  type ApproachInput = Pick<Approach, 'kind' | 'label' | 'start_date' | 'end_date' | 'periods' | 'comment'>
+
+  async function addApproach(journalId: string, input: ApproachInput) {
+    const now = nowIso()
+    const approach: Approach = {
+      id: crypto.randomUUID(),
+      journal_id: journalId,
+      ...input,
+      label: input.label.trim(),
+      created_by: user.value!.id,
+      created_at: now,
+      updated_at: now,
+      deleted_at: null,
+      _dirty: 1,
+      _lmod: Date.now()
+    }
+    await db.approaches.add(approach)
+    schedule()
+    return approach
+  }
+
+  async function updateApproach(id: string, patch: Partial<ApproachInput>) {
+    await db.approaches.update(id, { ...patch, _dirty: 1, _lmod: Date.now() })
+    schedule()
+  }
+
+  async function deleteApproach(id: string) {
+    await db.approaches.update(id, { deleted_at: nowIso(), _dirty: 1, _lmod: Date.now() })
+    schedule(7000)
+  }
+
+  async function restoreApproach(id: string) {
+    await db.approaches.update(id, { deleted_at: null, _dirty: 1, _lmod: Date.now() })
+    schedule()
+  }
+
   return {
     createJournal, updateJournal,
     addWakeup, updateWakeup, deleteWakeup, restoreWakeup,
-    addOption, updateOption, reorderOptions
+    addOption, updateOption, reorderOptions,
+    addApproach, updateApproach, deleteApproach, restoreApproach
   }
 }
 
@@ -198,4 +237,16 @@ export function useOptions(journalId: Ref<string>) {
   }
 
   return { all, byId, reasons, actions, archived, labelOf }
+}
+
+/** Démarches (non supprimées) d'un journal, de la plus récente à la plus ancienne */
+export function useApproaches(journalId: Ref<string>) {
+  const db = useDb()
+  return useLiveQuery(
+    async () => (await db.approaches.where('journal_id').equals(journalId.value).toArray())
+      .filter(a => !a.deleted_at)
+      .sort((a, b) => b.start_date.localeCompare(a.start_date) || a.label.localeCompare(b.label)),
+    [] as Approach[],
+    [journalId]
+  )
 }

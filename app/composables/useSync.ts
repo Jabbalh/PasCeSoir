@@ -13,6 +13,18 @@ let debounceTimer: ReturnType<typeof setTimeout> | null = null
 
 const WAKEUP_FIELDS = ['id', 'journal_id', 'woke_at', 'wake_type', 'reason_ids', 'action_ids', 'comment', 'created_by', 'created_at', 'deleted_at'] as const
 const OPTION_FIELDS = ['id', 'journal_id', 'kind', 'label', 'position', 'created_at', 'deleted_at'] as const
+const APPROACH_FIELDS = ['id', 'journal_id', 'kind', 'label', 'start_date', 'end_date', 'periods', 'comment', 'created_by', 'created_at', 'deleted_at'] as const
+
+/** Tables synchronisées par lots : table distante, champs envoyés, préfixe du curseur de lecture */
+const ROW_TABLES = {
+  options: { remote: 'journal_options', fields: OPTION_FIELDS, cursor: 'ocursor' },
+  wakeups: { remote: 'wakeups', fields: WAKEUP_FIELDS, cursor: 'cursor' },
+  approaches: { remote: 'approaches', fields: APPROACH_FIELDS, cursor: 'acursor' }
+} as const
+type RowTable = keyof typeof ROW_TABLES
+
+/** Curseurs de lecture d'un journal (à effacer avec lui) */
+const cursorKeys = (journalId: string) => Object.values(ROW_TABLES).map(t => `${t.cursor}:${journalId}`)
 /** Marge de recouvrement pour ne rater aucune ligne commitée en retard */
 const CURSOR_OVERLAP_MS = 60_000
 const PAGE_SIZE = 500
@@ -24,7 +36,7 @@ function pick<T extends object, K extends keyof T>(obj: T, keys: readonly K[]): 
 }
 
 /** Retire le marqueur « à envoyer » sauf si la ligne a encore été modifiée pendant l'envoi */
-async function markClean(table: AppDb['journals'] | AppDb['wakeups'] | AppDb['options'], rows: { id: string, _lmod: number }[]) {
+async function markClean(table: AppDb['journals'] | AppDb['wakeups'] | AppDb['options'] | AppDb['approaches'], rows: { id: string, _lmod: number }[]) {
   await Promise.all(rows.map(r =>
     (table as AppDb['wakeups']).where('id').equals(r.id).modify((row) => {
       if (row._lmod === r._lmod) row._dirty = 0
@@ -52,6 +64,7 @@ export function useSync() {
     pendingCount.value = (await db.journals.where('_dirty').equals(1).count())
       + (await db.options.where('_dirty').equals(1).count())
       + (await db.wakeups.where('_dirty').equals(1).count())
+      + (await db.approaches.where('_dirty').equals(1).count())
   }
 
   async function pushJournals(db: AppDb, userId: string) {
@@ -77,11 +90,11 @@ export function useSync() {
     }
   }
 
-  /** Envoie les lignes modifiées localement (réveils ou options) par lots */
-  async function pushRows(db: AppDb, name: 'wakeups' | 'options') {
-    const table = (name === 'wakeups' ? db.wakeups : db.options) as AppDb['wakeups']
-    const remote = name === 'wakeups' ? 'wakeups' : 'journal_options'
-    const fields = (name === 'wakeups' ? WAKEUP_FIELDS : OPTION_FIELDS) as readonly string[]
+  /** Envoie les lignes modifiées localement (réveils, options ou démarches) par lots */
+  async function pushRows(db: AppDb, name: RowTable) {
+    const table = db[name] as unknown as AppDb['wakeups']
+    const { remote } = ROW_TABLES[name]
+    const fields = ROW_TABLES[name].fields as readonly string[]
     const toPayload = (row: object) => pick(row as Record<string, unknown>, fields)
 
     const dirty = await table.where('_dirty').equals(1).toArray()
@@ -112,15 +125,19 @@ export function useSync() {
     if (mErr) throw mErr
 
     const remoteIds = new Set(journals.map(j => j.id as string))
-    await db.transaction('rw', [db.journals, db.members, db.wakeups, db.options, db.meta], async () => {
+    const purgeJournal = async (id: string) => {
+      await db.journals.delete(id)
+      await db.wakeups.where('journal_id').equals(id).delete()
+      await db.options.where('journal_id').equals(id).delete()
+      await db.approaches.where('journal_id').equals(id).delete()
+      await db.meta.bulkDelete(cursorKeys(id))
+    }
+    await db.transaction('rw', [db.journals, db.members, db.wakeups, db.options, db.approaches, db.meta], async () => {
       for (const j of journals) {
         const local = await db.journals.get(j.id)
         if (local?._dirty) continue
         if (j.deleted_at) {
-          await db.journals.delete(j.id)
-          await db.wakeups.where('journal_id').equals(j.id).delete()
-          await db.options.where('journal_id').equals(j.id).delete()
-          await db.meta.bulkDelete([`cursor:${j.id}`, `ocursor:${j.id}`])
+          await purgeJournal(j.id)
           continue
         }
         await db.journals.put({ ...j, _dirty: 0, _lmod: local?._lmod ?? 0 } as Journal)
@@ -128,12 +145,7 @@ export function useSync() {
       // Journaux dont on n'est plus membre (et qui ne sont pas en attente de création)
       const locals = await db.journals.toArray()
       for (const l of locals) {
-        if (!remoteIds.has(l.id) && !l._dirty) {
-          await db.journals.delete(l.id)
-          await db.wakeups.where('journal_id').equals(l.id).delete()
-          await db.options.where('journal_id').equals(l.id).delete()
-          await db.meta.bulkDelete([`cursor:${l.id}`, `ocursor:${l.id}`])
-        }
+        if (!remoteIds.has(l.id) && !l._dirty) await purgeJournal(l.id)
       }
       // On garde les membres des journaux pas encore envoyés au serveur
       const pendingIds = new Set(locals.filter(l => l._dirty && !remoteIds.has(l.id)).map(l => l.id))
@@ -150,14 +162,14 @@ export function useSync() {
   }
 
   /**
-   * Tire les changements distants d'un journal (réveils ou options) depuis le dernier curseur.
-   * Les réveils supprimés sont effacés localement ; les options archivées sont conservées
+   * Tire les changements distants d'un journal (réveils, options ou démarches) depuis le dernier curseur.
+   * Les réveils et démarches supprimés sont effacés localement ; les options archivées sont conservées
    * (leur libellé reste affiché sur les anciens réveils).
    */
-  async function pullRows(db: AppDb, name: 'wakeups' | 'options', journalId: string) {
-    const table = (name === 'wakeups' ? db.wakeups : db.options) as AppDb['wakeups']
-    const remote = name === 'wakeups' ? 'wakeups' : 'journal_options'
-    const cursorKey = `${name === 'wakeups' ? 'cursor' : 'ocursor'}:${journalId}`
+  async function pullRows(db: AppDb, name: RowTable, journalId: string) {
+    const table = db[name] as unknown as AppDb['wakeups']
+    const { remote } = ROW_TABLES[name]
+    const cursorKey = `${ROW_TABLES[name].cursor}:${journalId}`
     let cursor = ((await db.meta.get(cursorKey))?.value as string | undefined) ?? '1970-01-01T00:00:00Z'
     const since = new Date(new Date(cursor).getTime() - CURSOR_OVERLAP_MS).toISOString()
     let from = 0
@@ -177,7 +189,7 @@ export function useSync() {
         for (const row of data) {
           const local = await table.get(row.id)
           if (local?._dirty) continue
-          if (row.deleted_at && name === 'wakeups') await table.delete(row.id)
+          if (row.deleted_at && name !== 'options') await table.delete(row.id)
           else if (name === 'wakeups') {
             // tolère une ligne à l'ancien format (serveur pas encore migré)
             await table.put({ ...row, wake_type: row.wake_type ?? null, reason_ids: row.reason_ids ?? [], action_ids: row.action_ids ?? [], _dirty: 0, _lmod: local?._lmod ?? 0 })
@@ -203,12 +215,15 @@ export function useSync() {
       await pushJournals(db, userId)
       await pushRows(db, 'options')
       await pushRows(db, 'wakeups')
-      // Les réveils supprimés et confirmés par le serveur ne sont plus utiles localement
+      await pushRows(db, 'approaches')
+      // Les réveils et démarches supprimés et confirmés par le serveur ne sont plus utiles localement
       await db.wakeups.filter(w => !!w.deleted_at && !w._dirty).delete()
+      await db.approaches.filter(a => !!a.deleted_at && !a._dirty).delete()
       const journalIds = await pullJournals(db)
       for (const id of journalIds) {
         await pullRows(db, 'options', id)
         await pullRows(db, 'wakeups', id)
+        await pullRows(db, 'approaches', id)
       }
       lastSyncAt.value = new Date()
       lastError.value = null

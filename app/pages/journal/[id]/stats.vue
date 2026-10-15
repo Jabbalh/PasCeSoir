@@ -4,6 +4,7 @@ const journalId = computed(() => route.params.id as string)
 const { journal } = useJournal(journalId)
 const { data: wakeups, loading } = useWakeups(journalId)
 const { labelOf } = useOptions(journalId)
+const { data: approaches } = useApproaches(journalId)
 
 const today = toDateKey(new Date())
 const from = ref(toDateKey(addDays(new Date(), -29)))
@@ -98,6 +99,64 @@ const series = computed(() => {
 
 const showTable = ref(false)
 
+/** Démarches en place sur la période, de la plus ancienne à la plus récente */
+const approachesInRange = computed(() => {
+  const [a, b] = range.value
+  return approaches.value
+    .filter(x => x.start_date <= b && (!x.end_date || x.end_date >= a))
+    .sort((x, y) => x.start_date.localeCompare(y.start_date))
+})
+
+/** Frise des démarches sous l'histogramme, alignée sur les semaines / mois */
+const approachBands = computed(() => {
+  const [a, b] = range.value
+  const keyOf = granularity.value === 'week' ? weekKey : monthKey
+  const index = new Map(series.value.map((s, i) => [s.key, i]))
+  return approachesInRange.value.flatMap((x) => {
+    const from = index.get(keyOf(x.start_date > a ? x.start_date : a))
+    const to = index.get(keyOf(x.end_date && x.end_date < b ? x.end_date : b))
+    if (from === undefined || to === undefined) return []
+    const k = approachKind(x.kind)
+    return [{ key: x.id, label: x.label, from, to, class: k.bar, icon: k.icon, tooltip: `${k.label} · ${x.label} : ${approachDates(x, today).toLowerCase()}` }]
+  })
+})
+
+/**
+ * Effet de chaque démarche : réveils nocturnes (hors levers) par nuit pendant la démarche,
+ * comparés aux 30 nuits qui précèdent son début. La nuit en cours, incomplète, est exclue.
+ */
+const BEFORE_NIGHTS = 30
+const approachEffects = computed(() => {
+  const lastNight = toDateKey(addDays(fromDateKey(nightKey(new Date())), -1))
+  const perNight = new Map<string, number>()
+  for (const w of wakeups.value) {
+    if (w.wake_type === 'lever') continue
+    const k = nightKey(w.woke_at)
+    perNight.set(k, (perNight.get(k) ?? 0) + 1)
+  }
+  // pas de données avant la création du journal ni avant le premier réveil saisi
+  const firstWakeup = wakeups.value.at(-1)
+  const dataStart = [journal.value && nightKey(journal.value.created_at), firstWakeup && nightKey(firstWakeup.woke_at)]
+    .filter((k): k is string => !!k)
+    .sort()[0] ?? today
+  const stat = (from: string, to: string) => {
+    if (to < from) return null
+    let total = 0
+    for (let d = fromDateKey(from); toDateKey(d) <= to; d = addDays(d, 1)) total += perNight.get(toDateKey(d)) ?? 0
+    const nights = daysBetween(from, to)
+    return { nights, avg: total / nights }
+  }
+  return approachesInRange.value.map((x) => {
+    const beforeTo = toDateKey(addDays(fromDateKey(x.start_date), -1))
+    const beforeFrom = toDateKey(addDays(fromDateKey(x.start_date), -BEFORE_NIGHTS))
+    const before = stat(beforeFrom > dataStart ? beforeFrom : dataStart, beforeTo)
+    const during = stat(x.start_date, x.end_date && x.end_date < lastNight ? x.end_date : lastNight)
+    const delta = before && during && before.avg ? Math.round(((during.avg - before.avg) / before.avg) * 100) : null
+    return { approach: x, kind: approachKind(x.kind), before, during, delta }
+  })
+})
+const fmtAvg = (n: number) => n.toLocaleString('fr-FR', { maximumFractionDigits: 1 })
+
 /** Top 10 des raisons (un réveil peut avoir plusieurs raisons) */
 const topReasons = computed(() => {
   const counts = new Map<string, number>()
@@ -137,21 +196,55 @@ const byHour = computed(() => {
     return { key: String(h), label: `${h}h`, value: v, tooltip: `Entre ${h}h et ${(h + 1) % 24}h : ${v} réveil${v > 1 ? 's' : ''}` }
   })
 })
+
+/**
+ * Export PDF par l'impression du navigateur (« Enregistrer au format PDF ») : rendu vectoriel,
+ * sans dépendance, hors connexion. Le thème clair est appliqué par app.vue (beforeprint) ;
+ * le titre du document sert de nom de fichier proposé.
+ */
+function exportPdf() {
+  const title = document.title
+  document.title = `${journal.value?.child_name || journal.value?.name || 'statistiques'} - ${range.value[0]} au ${range.value[1]}`
+  const restore = () => (document.title = title)
+  window.addEventListener('afterprint', restore, { once: true })
+  try {
+    window.print()
+  } catch {
+    window.removeEventListener('afterprint', restore)
+    restore()
+  }
+}
 </script>
 
 <template>
-  <div class="space-y-5">
-    <div>
-      <p class="text-sm text-muted">
-        {{ journal?.name }}
-      </p>
-      <h1 class="text-2xl font-bold">
-        Statistiques
-      </h1>
+  <div class="space-y-5 print:space-y-4">
+    <div class="flex items-end gap-2">
+      <div class="flex-1 min-w-0">
+        <p class="text-sm text-muted">
+          {{ journal?.name }}<span v-if="journal?.child_name" class="hidden print:inline"> · {{ journal.child_name }}</span>
+        </p>
+        <h1 class="text-2xl font-bold">
+          Statistiques
+        </h1>
+        <!-- en-tête du rapport imprimé -->
+        <p class="hidden print:block text-sm">
+          Nuits du {{ formatDay(range[0]) }} au {{ formatDay(range[1]) }} · généré le {{ formatDay(today) }}
+        </p>
+      </div>
+      <UButton
+        icon="i-lucide-file-down"
+        color="neutral"
+        variant="soft"
+        class="print:hidden"
+        :disabled="loading"
+        @click="exportPdf"
+      >
+        PDF
+      </UButton>
     </div>
 
     <!-- Période -->
-    <UCard :ui="{ body: 'p-3 sm:p-4 space-y-3' }">
+    <UCard class="print:hidden" :ui="{ body: 'p-3 sm:p-4 space-y-3' }">
       <div class="flex flex-wrap gap-1.5">
         <UButton
           v-for="p in presets"
@@ -184,7 +277,7 @@ const byHour = computed(() => {
 
     <template v-else>
       <!-- Chiffres clés -->
-      <div class="grid grid-cols-3 gap-2">
+      <div class="grid grid-cols-3 gap-2 break-inside-avoid">
         <div class="rounded-xl border border-default p-3 text-center">
           <p class="text-3xl font-extrabold tabular-nums">
             {{ inRange.length }}
@@ -212,7 +305,7 @@ const byHour = computed(() => {
       </div>
 
       <!-- Lever / nocturne -->
-      <UCard :ui="{ body: 'p-3 sm:p-4 space-y-3' }">
+      <UCard class="break-inside-avoid" :ui="{ body: 'p-3 sm:p-4 space-y-3' }">
         <h2 class="font-semibold">
           Lever ou réveil nocturne
         </h2>
@@ -222,7 +315,7 @@ const byHour = computed(() => {
         <template v-else>
           <div class="flex h-3 rounded-full bg-elevated overflow-hidden" role="img" :aria-label="byType.segments.map(s => `${s.label} : ${s.count}`).join(', ')">
             <div
-              v-for="s in byType.segments.filter(s => s.count)"
+              v-for="s in byType.segments.filter(_ => s.count)"
               :key="s.label"
               class="h-full"
               :class="s.bar"
@@ -241,25 +334,26 @@ const byHour = computed(() => {
       </UCard>
 
       <!-- Évolution -->
-      <UCard :ui="{ body: 'p-3 sm:p-4 space-y-3' }">
+      <UCard class="break-inside-avoid" :ui="{ body: 'p-3 sm:p-4 space-y-3' }">
         <div class="flex items-center justify-between gap-2">
           <h2 class="font-semibold">
             Réveils par {{ granularity === 'week' ? 'semaine' : 'mois' }}
           </h2>
           <UTabs
+            class="print:hidden"
             v-model="granularity"
             size="xs"
             :content="false"
             :items="[{ label: 'Semaine', value: 'week' }, { label: 'Mois', value: 'month' }]"
           />
         </div>
-        <ColumnChart :items="series" />
+        <ColumnChart :items="series" :bands="approachBands" />
         <ul class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
           <li v-for="s in typeSegments" :key="s.label" class="flex items-center gap-1.5">
             <span class="size-2.5 rounded-full" :class="s.bar" />{{ s.label }}
           </li>
         </ul>
-        <UButton size="xs" variant="link" color="neutral" :icon="showTable ? 'i-lucide-chart-column' : 'i-lucide-table'" @click="showTable = !showTable">
+        <UButton size="xs" variant="link" color="neutral" class="print:hidden" :icon="showTable ? 'i-lucide-chart-column' : 'i-lucide-table'" @click="showTable = !showTable">
           {{ showTable ? 'Masquer le tableau' : 'Voir en tableau' }}
         </UButton>
         <table v-if="showTable" class="w-full text-sm">
@@ -292,8 +386,70 @@ const byHour = computed(() => {
         </table>
       </UCard>
 
+      <!-- Démarches : avant / pendant -->
+      <UCard class="break-inside-avoid" :ui="{ body: 'p-3 sm:p-4 space-y-3' }">
+        <div class="flex items-center justify-between gap-2">
+          <h2 class="font-semibold">
+            Effet des démarches
+          </h2>
+          <ULink :to="`/journal/${journalId}/demarches`" class="text-xs text-muted print:hidden">Gérer</ULink>
+        </div>
+        <p v-if="!approachEffects.length" class="text-sm text-muted">
+          Aucune démarche sur cette période.
+        </p>
+        <ul v-else class="divide-y divide-default">
+          <li v-for="e in approachEffects" :key="e.approach.id" class="py-2.5 first:pt-0 last:pb-0 space-y-1.5 break-inside-avoid">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="size-6 shrink-0 rounded-full flex items-center justify-center" :class="e.kind.soft">
+                <UIcon :name="e.kind.icon" class="size-3.5" />
+              </span>
+              <span class="font-medium truncate flex-1">{{ e.approach.label }}</span>
+              <UBadge
+                v-if="e.delta !== null"
+                :color="e.delta < 0 ? 'success' : e.delta > 0 ? 'error' : 'neutral'"
+                variant="subtle"
+                size="sm"
+                :icon="e.delta < 0 ? 'i-lucide-trending-down' : e.delta > 0 ? 'i-lucide-trending-up' : 'i-lucide-minus'"
+              >
+                {{ e.delta > 0 ? '+' : '' }}{{ e.delta }} %
+              </UBadge>
+            </div>
+            <p class="text-xs text-muted">
+              {{ approachDates(e.approach, today) }}
+            </p>
+            <div class="grid grid-cols-2 gap-2 text-sm">
+              <div class="rounded-lg bg-elevated/60 px-2.5 py-1.5">
+                <p class="text-xs text-muted">
+                  Avant
+                </p>
+                <p v-if="e.before" class="tabular-nums">
+                  <strong>{{ fmtAvg(e.before.avg) }}</strong> <span class="text-muted">/ nuit · {{ e.before.nights }} n.</span>
+                </p>
+                <p v-else class="text-muted text-xs">
+                  Pas de données
+                </p>
+              </div>
+              <div class="rounded-lg bg-elevated/60 px-2.5 py-1.5">
+                <p class="text-xs text-muted">
+                  Pendant
+                </p>
+                <p v-if="e.during" class="tabular-nums">
+                  <strong>{{ fmtAvg(e.during.avg) }}</strong> <span class="text-muted">/ nuit · {{ e.during.nights }} n.</span>
+                </p>
+                <p v-else class="text-muted text-xs">
+                  Pas encore de nuit complète
+                </p>
+              </div>
+            </div>
+          </li>
+        </ul>
+        <p v-if="approachEffects.length" class="text-xs text-muted">
+          Réveils nocturnes par nuit (levers exclus) : pendant la démarche, comparés aux {{ BEFORE_NIGHTS }} nuits précédant son début. Calcul sur tout l'historique, indépendamment de la période choisie ; plusieurs démarches simultanées peuvent se combiner.
+        </p>
+      </UCard>
+
       <!-- Top raisons -->
-      <UCard :ui="{ body: 'p-3 sm:p-4 space-y-3' }">
+      <UCard class="break-inside-avoid" :ui="{ body: 'p-3 sm:p-4 space-y-3' }">
         <h2 class="font-semibold">
           Top 10 des raisons
         </h2>
@@ -317,7 +473,7 @@ const byHour = computed(() => {
       </UCard>
 
       <!-- Heures -->
-      <UCard :ui="{ body: 'p-3 sm:p-4 space-y-3' }">
+      <UCard class="break-inside-avoid" :ui="{ body: 'p-3 sm:p-4 space-y-3' }">
         <h2 class="font-semibold">
           À quelle heure ?
         </h2>

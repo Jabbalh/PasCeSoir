@@ -21,6 +21,7 @@ Points clés :
 | **Type de réveil** | **Lever** (réveil du matin) ou **Réveil nocturne**. Vide par défaut. |
 | **Raison** | Cause du réveil (ex. « Cauchemar », « Faim »). Liste propre à chaque journal. |
 | **Action** | Ce qui a été fait (ex. « Câlin », « Biberon »). Liste propre à chaque journal. |
+| **Démarche** | Ce qui est mis en place pour améliorer les nuits, de date à date (sans date de fin = **en cours**) : type (**Rituel**, **Médication**, **Alimentation**, **Environnement**, **Autre**), nom, moment(s) de la journée, commentaire. |
 | **Nuit** | Période de **14h à 14h le lendemain**. Un réveil à 3h du matin le mardi appartient à la « nuit du lundi au mardi ». |
 | **Administrateur** | Utilisateur pouvant inviter de nouvelles personnes à utiliser l'application. |
 
@@ -30,6 +31,7 @@ Points clés :
 |---|:-:|:-:|:-:|
 | Voir le journal, ses réveils et statistiques | ✅ | ✅ | — |
 | Ajouter / modifier / supprimer un réveil | ✅ | ✅ | — |
+| Ajouter / modifier / supprimer une démarche | ✅ | ✅ | — |
 | Gérer les listes de raisons et d'actions | ✅ | ✅ | — |
 | Modifier le nom du journal / le prénom | ✅ | ✅ | — |
 | Partager / copier le lien de partage existant | ✅ | ✅ | — |
@@ -78,6 +80,7 @@ Si des modifications ne sont pas encore synchronisées, une confirmation est dem
 - **Historique** : nuits précédentes groupées par nuit (7 nuits affichées, puis « voir plus »).
 - Chaque réveil affiche l'heure, le type (si renseigné), l'auteur, les raisons (orange) et actions (vert), un extrait du commentaire. Un réveil sans raison, action ni commentaire est marqué **« À compléter »**.
 - Une icône nuage signale un réveil pas encore envoyé au serveur.
+- **Démarches en cours** : sous le bouton, rappel compact des démarches en place aujourd'hui (avec leurs moments), qui ouvre l'onglet Démarches.
 
 ### 5.3 Détail d'un réveil (`/journal/<id>/reveil/<id>` ou `/reveil/nouveau`)
 
@@ -92,19 +95,44 @@ Si des modifications ne sont pas encore synchronisées, une confirmation est dem
 
 Suppression : avec confirmation, puis possibilité d'**Annuler** pendant quelques secondes.
 
-### 5.4 Statistiques (`/journal/<id>/stats`)
+### 5.4 Démarches (`/journal/<id>/demarches`)
+
+Ce qui est mis en place pour améliorer les nuits (rituel du coucher, traitement, changement d'alimentation ou de chambre…), afin d'en mesurer l'effet sur les réveils.
+
+- Liste groupée en **En cours**, **À venir** (début dans le futur) et **Terminées** (date de fin passée).
+- Chaque démarche affiche son type (icône et couleur), son nom, ses dates (« Depuis le… », « Du… au… », « À partir du… »), ses moments et un extrait du commentaire.
+
+Détail (`/journal/<id>/demarches/<id>` ou `/demarches/nouveau`) :
+
+| Champ | Règle |
+|---|---|
+| Type | Obligatoire : **Rituel**, **Médication**, **Alimentation**, **Environnement** ou **Autre** (liste fixe). |
+| Nom | Obligatoire (ex. « Bain avant le coucher », « Mélatonine 1 mg »). |
+| Du | Obligatoire, aujourd'hui par défaut. |
+| Au | Facultatif, date **incluse**. Vide = **toujours en cours**. Boutons « Terminer aujourd'hui » / « Toujours en cours ». Doit suivre la date de début. |
+| Moment(s) de la journée | Facultatif, choix multiple : **Matin**, **Midi**, **Après-midi**, **Soir / coucher**, **Nuit**. |
+| Commentaire | Texte riche (dosage, déroulé…). |
+| Auteur | Automatique. |
+
+Une démarche est rattachée aux **nuits** dont la date du soir est comprise entre ses dates de début et de fin. Suppression : avec confirmation, puis **Annuler** possible quelques secondes.
+
+### 5.5 Statistiques (`/journal/<id>/stats`)
 
 Période choisie par préréglage (7 j, 30 j, 3 mois, 1 an, Tout) ou de date à date (« nuit du … »).
 
 - **Chiffres clés** : nombre de réveils, moyenne par nuit, nuits sans réveil.
 - **Lever ou réveil nocturne** : barre de répartition + nombre et pourcentage par type (Lever, Réveil nocturne, Non renseigné).
 - **Réveils par semaine / par mois** : histogramme **empilé par type** (orange = Lever, couleur principale = Réveil nocturne, gris = Non renseigné), infobulle détaillée, et vue tableau avec une colonne par type.
+- **Frise des démarches** : sous l'histogramme, une ligne colorée par démarche (couleur du type) sur les semaines / mois où elle était en place.
+- **Effet des démarches** : pour chaque démarche de la période, réveils nocturnes par nuit (levers exclus) **pendant** la démarche, comparés aux **30 nuits précédant** son début, avec l'évolution en %. La nuit en cours est exclue ; le calcul porte sur tout l'historique.
 - **Top 10 des raisons** : nombre et pourcentage (sur le nombre de réveils ; un réveil peut avoir plusieurs raisons).
 - **À quelle heure ?** : répartition des réveils par heure, de 18h à 11h.
 
 Les semaines commencent le lundi ; un réveil est compté dans la semaine / le mois de **sa nuit**.
 
-### 5.5 Réglages du journal (`/journal/<id>/reglages`)
+**Export PDF** : le bouton « PDF » ouvre l'impression du téléphone / navigateur ; choisir « Enregistrer au format PDF ». Le document reprend la période choisie (en-tête : journal, prénom, nuits couvertes, date de génération), en thème clair, sans les boutons ni la navigation. Le tableau n'apparaît que s'il est affiché à l'écran. Fonctionne hors connexion.
+
+### 5.6 Réglages du journal (`/journal/<id>/reglages`)
 
 - **Informations** : nom du journal et prénom de l'enfant.
 - **Raisons et actions** : ajouter, renommer, réordonner (monter / descendre), retirer de la liste.
@@ -116,11 +144,11 @@ Les semaines commencent le lundi ; un réveil est compté dans la semaine / le m
 - **Membres** : liste avec le rôle (Créateur / Membre) ; le propriétaire peut retirer un membre.
 - **Zone sensible** : le propriétaire peut **supprimer le journal** pour tous les membres ; un membre peut **quitter le journal**.
 
-### 5.6 Rejoindre un journal (`/rejoindre/<jeton>`)
+### 5.7 Rejoindre un journal (`/rejoindre/<jeton>`)
 
 Affiche le nom du journal et le prénom de l'enfant, puis bouton **Rejoindre**. Connexion internet requise. Sans compte, la personne est redirigée vers la création de compte.
 
-### 5.7 Mon profil (`/profil`)
+### 5.8 Mon profil (`/profil`)
 
 - Modifier le **nom affiché** (visible par les autres membres comme auteur des réveils).
 - **Supprimer mon compte** : un aperçu liste les conséquences avant confirmation :
@@ -129,7 +157,7 @@ Affiche le nom du journal et le prénom de l'enfant, puis bouton **Rejoindre**. 
   - modifications non synchronisées → perdues ;
   - données locales du téléphone → effacées.
 
-### 5.8 Administration (`/admin`, administrateurs uniquement)
+### 5.9 Administration (`/admin`, administrateurs uniquement)
 
 - Créer une invitation : « Pour qui ? » (note libre) et validité (24 h, 7 j, 30 j) ; le lien est aussitôt proposé au partage.
 - Liste des invitations avec leur statut : **Active jusqu'au…**, **Utilisée par …**, **Révoquée**, **Expirée**.

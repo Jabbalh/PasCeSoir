@@ -13,6 +13,7 @@ const navItems = computed(() => {
   const base = `/journal/${journalId.value}`
   return [
     { label: 'Réveils', icon: 'i-lucide-moon-star', to: base, exact: true },
+    { label: 'Démarches', icon: 'i-lucide-list-checks', to: `${base}/demarches` },
     { label: 'Stats', icon: 'i-lucide-chart-column', to: `${base}/stats` },
     { label: 'Réglages', icon: 'i-lucide-settings', to: `${base}/reglages` }
   ]
@@ -42,7 +43,7 @@ const userMenu = computed<DropdownMenuItem[][]>(() => [
 
 <template>
   <div class="min-h-dvh flex flex-col bg-default">
-    <header class="sticky top-0 z-30 bg-default/85 backdrop-blur border-b border-default pt-[env(safe-area-inset-top)]">
+    <header class="print:hidden sticky top-0 z-30 bg-default/85 backdrop-blur border-b border-default pt-[env(safe-area-inset-top)]">
       <div class="max-w-lg mx-auto h-14 px-4 flex items-center gap-2">
         <NuxtLink to="/" class="flex items-center gap-2 font-bold text-lg min-w-0">
           <img src="/icon.svg" alt="" class="size-7 shrink-0">
@@ -57,15 +58,15 @@ const userMenu = computed<DropdownMenuItem[][]>(() => [
       </div>
     </header>
 
-    <main class="flex-1 w-full max-w-lg mx-auto px-4 py-4" :class="navItems.length ? 'pb-28' : 'pb-8'">
+    <main class="flex-1 w-full max-w-lg mx-auto px-4 py-4 print:max-w-none print:p-0" :class="navItems.length ? 'pb-28' : 'pb-8'">
       <slot />
     </main>
 
     <nav
       v-if="navItems.length"
-      class="fixed bottom-0 inset-x-0 z-30 bg-default/90 backdrop-blur border-t border-default pb-[env(safe-area-inset-bottom)]"
+      class="print:hidden fixed bottom-0 inset-x-0 z-30 bg-default/90 backdrop-blur border-t border-default pb-[env(safe-area-inset-bottom)]"
     >
-      <div class="max-w-lg mx-auto grid grid-cols-3">
+      <div class="max-w-lg mx-auto grid grid-cols-4">
         <NuxtLink
           v-for="item in navItems"
           :key="item.to"

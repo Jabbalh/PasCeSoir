@@ -58,6 +58,52 @@ export interface Wakeup extends SyncFields {
   deleted_at: string | null
 }
 
+/** Type de démarche (liste fixe) */
+export type ApproachKind = 'rituel' | 'medication' | 'alimentation' | 'environnement' | 'autre'
+
+/** `bar` : couleur pleine (frise des statistiques) ; `soft` : pastille d'icône (classes écrites en entier pour Tailwind) */
+export const APPROACH_KINDS: { value: ApproachKind, label: string, icon: string, color: 'info' | 'error' | 'success' | 'secondary' | 'neutral', bar: string, soft: string }[] = [
+  { value: 'rituel', label: 'Rituel', icon: 'i-lucide-repeat', color: 'info', bar: 'bg-info', soft: 'bg-info/15 text-info' },
+  { value: 'medication', label: 'Médication', icon: 'i-lucide-pill', color: 'error', bar: 'bg-error', soft: 'bg-error/15 text-error' },
+  { value: 'alimentation', label: 'Alimentation', icon: 'i-lucide-utensils', color: 'success', bar: 'bg-success', soft: 'bg-success/15 text-success' },
+  { value: 'environnement', label: 'Environnement', icon: 'i-lucide-bed', color: 'secondary', bar: 'bg-secondary', soft: 'bg-secondary/15 text-secondary' },
+  { value: 'autre', label: 'Autre', icon: 'i-lucide-circle-dot', color: 'neutral', bar: 'bg-inverted/50', soft: 'bg-elevated text-muted' }
+]
+
+export function approachKind(kind: ApproachKind) {
+  return APPROACH_KINDS.find(k => k.value === kind) ?? APPROACH_KINDS[APPROACH_KINDS.length - 1]!
+}
+
+/** Moment de la journée où la démarche a lieu */
+export type DayPeriod = 'matin' | 'midi' | 'apres_midi' | 'soir' | 'nuit'
+
+export const DAY_PERIODS: { value: DayPeriod, label: string }[] = [
+  { value: 'matin', label: 'Matin' },
+  { value: 'midi', label: 'Midi' },
+  { value: 'apres_midi', label: 'Après-midi' },
+  { value: 'soir', label: 'Soir / coucher' },
+  { value: 'nuit', label: 'Nuit' }
+]
+
+/** Démarche mise en place (rituel, médication…) de date à date ; sans date de fin = en cours */
+export interface Approach extends SyncFields {
+  id: string
+  journal_id: string
+  kind: ApproachKind
+  label: string
+  /** AAAA-MM-JJ */
+  start_date: string
+  /** AAAA-MM-JJ inclus ; null = toujours en cours */
+  end_date: string | null
+  periods: DayPeriod[]
+  comment: string
+  /** vide si le compte de l'auteur a été supprimé */
+  created_by: string | null
+  created_at: string
+  updated_at: string
+  deleted_at: string | null
+}
+
 export interface Member {
   key: string
   journal_id: string
@@ -75,6 +121,7 @@ export type AppDb = Dexie & {
   journals: EntityTable<Journal, 'id'>
   options: EntityTable<JournalOption, 'id'>
   wakeups: EntityTable<Wakeup, 'id'>
+  approaches: EntityTable<Approach, 'id'>
   members: EntityTable<Member, 'key'>
   meta: EntityTable<Meta, 'key'>
 }
@@ -117,6 +164,10 @@ export function openDb(userId: string): AppDb {
         delete w.actions
       })
       await tx.table('meta').clear()
+    })
+    // v4 : démarches (rituels, médication…)
+    db.version(4).stores({
+      approaches: 'id, journal_id, _dirty'
     })
     instances.set(userId, db)
   }

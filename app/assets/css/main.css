@@ -20,3 +20,10 @@ html, body {
 .rich-content :where(ol) { list-style: decimal; padding-left: 1.25rem; }
 .rich-content :where(strong) { font-weight: 700; }
 .rich-content :where(blockquote) { border-left: 3px solid var(--ui-border-accented); padding-left: 0.75rem; color: var(--ui-text-muted); }
+
+/* Impression / export PDF : couleurs conservées, pas de coupure au milieu d'un bloc */
+@media print {
+  @page { size: A4; margin: 12mm; }
+  html, body { background: #fff !important; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

@@ -6,7 +6,8 @@ Toute la logique de sécurité est dans la base : **Row Level Security** sur cha
 
 ```
 auth.users ──1:1── profiles ──┬──< journal_members >── journals ──┬──< wakeups
-                              │                                   └──< journal_options
+                              │                                   ├──< journal_options
+                              │                                   └──< approaches
                               ├──1:1── app_admins
                               └──< app_invites (created_by, used_by)
 
@@ -72,6 +73,23 @@ Index : `(journal_id, updated_at)` pour la synchro, `(journal_id, woke_at)`.
 | `created_at`, `updated_at` | timestamptz | |
 | `deleted_at` | timestamptz | option **archivée** (masquée du choix, conservée pour l'historique) |
 
+### `approaches` (démarches)
+
+| Colonne | Type | Remarque |
+|---|---|---|
+| `id` | uuid PK | généré côté client |
+| `journal_id` | uuid → journals | cascade |
+| `kind` | text | `rituel`, `medication`, `alimentation`, `environnement` ou `autre` |
+| `label` | text | nom de la démarche |
+| `start_date` | date | début (jour local) |
+| `end_date` | date, nullable | fin **incluse** ; `null` = en cours ; contrainte `end_date >= start_date` |
+| `periods` | text[] | sous-ensemble de `matin`, `midi`, `apres_midi`, `soir`, `nuit` (contrainte `<@`) |
+| `comment` | text | HTML du texte riche |
+| `created_by` | uuid → profiles, nullable | auteur ; `set null` si le compte est supprimé |
+| `created_at`, `updated_at`, `deleted_at` | timestamptz | soft delete |
+
+Index : `(journal_id, updated_at)` pour la synchro.
+
 ### `app_admins`
 
 `user_id` (PK → profiles, cascade), `created_at`. Lecture de sa propre ligne uniquement ; aucune écriture depuis l'application.
@@ -97,7 +115,7 @@ Index : `(journal_id, updated_at)` pour la synchro, `(journal_id, woke_at)`.
 |---|---|---|
 | `before_auth_user_created` → `guard_signup()` | `auth.users` | refuse l'inscription hors invitation |
 | `on_auth_user_created` → `handle_new_user()` | `auth.users` | crée le profil, fait rejoindre le journal (lien de partage), consomme l'invitation à l'app |
-| `journals_touch`, `wakeups_touch` → `touch_updated_at()` | | `updated_at = now()` ; `created_by` = utilisateur connecté à l'insertion, puis immuable (sauf mise à `null` par la suppression du compte) ; `created_at` immuable |
+| `journals_touch`, `wakeups_touch`, `approaches_touch` → `touch_updated_at()` | | `updated_at = now()` ; `created_by` = utilisateur connecté à l'insertion, puis immuable (sauf mise à `null` par la suppression du compte) ; `created_at` immuable |
 | `journal_options_touch`, `profiles_touch` | | `updated_at = now()` |
 | `journals_guard` → `guard_journal_update()` | `journals` | seul le propriétaire peut changer `deleted_at` ou `share_token` (erreur `42501`) |
 | `journals_add_owner` → `add_journal_owner()` | `journals` | ajoute le créateur comme `owner` |
@@ -111,6 +129,7 @@ Index : `(journal_id, updated_at)` pour la synchro, `(journal_id, woke_at)`.
 | `journal_members` | membres du journal | — (trigger / RPC) | — | soi si non propriétaire ; propriétaire pour les autres |
 | `wakeups` | membres | membre, `created_by = auth.uid()` | membres | — (soft delete) |
 | `journal_options` | membres | membres | membres | — (archivage) |
+| `approaches` | membres | membre, `created_by = auth.uid()` | membres | — (soft delete) |
 | `app_admins` | sa propre ligne | — | — | — |
 | `app_invites` | admins | admins | admins | — |
 | `signup_allowlist` | — | — | — | — |
@@ -143,7 +162,7 @@ Sinon : exception `Inscription sur invitation uniquement` (Supabase Auth la renv
 
 ### Suppression de compte
 
-1. Suppression des journaux dont l'utilisateur est le créateur → cascade sur membres, réveils et options (pour tous).
+1. Suppression des journaux dont l'utilisateur est le créateur → cascade sur membres, réveils, options et démarches (pour tous).
 2. Suppression de `auth.users` → cascade sur le profil, les adhésions, le rôle admin et les invitations créées ; les réveils saisis dans les journaux des autres passent à `created_by = null`.
 
 ### Administrateurs
@@ -174,6 +193,7 @@ insert into public.signup_allowlist (email, note) values ('<email en minuscules>
 | `20261014000004_admin_app_invites.sql` | administrateurs, invitations à l'application |
 | `20261014000005_delete_account.sql` | auteur des réveils nullable, suppression de compte |
 | `20261014000006_wakeup_type.sql` | type de réveil (`lever` / `nocturne`) |
+| `20261015000000_approaches.sql` | démarches (rituel, médication…) de date à date, moments de la journée |
 
 ## 7. Base locale (IndexedDB)
 

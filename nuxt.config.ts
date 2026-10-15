@@ -37,7 +37,7 @@ export default defineNuxtConfig({
   // Icônes embarquées dans le bundle : indispensable hors connexion
   icon: {
     // le scan ne couvre que les composants : icônes déclarées dans app/utils ajoutées à la main
-    clientBundle: { scan: true, icons: ['lucide:sunrise', 'lucide:moon'], sizeLimitKb: 512 },
+    clientBundle: { scan: true, icons: ['lucide:sunrise', 'lucide:moon', 'lucide:repeat', 'lucide:pill', 'lucide:utensils', 'lucide:bed', 'lucide:circle-dot'], sizeLimitKb: 512 },
     provider: 'none'
   },
 

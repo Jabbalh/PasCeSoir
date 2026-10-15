@@ -23,6 +23,13 @@ onBeforeUnmount(() => clearInterval(timer))
 
 const currentNight = computed(() => nightKey(now.value))
 
+// Démarches en place aujourd'hui (rappel compact)
+const { data: approaches } = useApproaches(journalId)
+const currentApproaches = computed(() => {
+  const today = toDateKey(now.value)
+  return approaches.value.filter(a => approachStatus(a, today) === 'en_cours').map(a => ({ ...a, k: approachKind(a.kind) }))
+})
+
 const nights = computed(() => {
   const groups = new Map<string, Wakeup[]>()
   for (const w of wakeups.value) {
@@ -119,6 +126,29 @@ async function recordWakeup() {
         Saisir un réveil à une autre heure
       </UButton>
     </div>
+
+    <!-- Démarches en cours -->
+    <NuxtLink
+      v-if="currentApproaches.length"
+      :to="`/journal/${journalId}/demarches`"
+      class="block rounded-xl border border-default bg-elevated/40 hover:bg-elevated p-3 transition"
+    >
+      <p class="text-xs text-muted mb-1.5 flex items-center gap-1">
+        <UIcon name="i-lucide-list-checks" class="size-3.5" />
+        Démarche{{ currentApproaches.length > 1 ? 's' : '' }} en cours
+      </p>
+      <div class="flex flex-wrap gap-1.5">
+        <UBadge
+          v-for="a in currentApproaches"
+          :key="a.id"
+          :color="a.k.color"
+          variant="subtle"
+          :icon="a.k.icon"
+        >
+          {{ a.label }}<span v-if="a.periods.length" class="opacity-70"> · {{ periodsLabel(a.periods) }}</span>
+        </UBadge>
+      </div>
+    </NuxtLink>
 
     <!-- Nuit en cours -->
     <section class="space-y-2">

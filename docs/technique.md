@@ -40,7 +40,8 @@ app/
 ├── app.vue, app.config.ts        # racine, couleurs Nuxt UI (primary indigo, neutral slate)
 ├── assets/css/main.css
 ├── components/
-│   ├── ColumnChart.vue           # histogramme vertical (simple ou empilé)
+│   ├── ApproachCard.vue          # carte d'une démarche dans la liste
+│   ├── ColumnChart.vue           # histogramme vertical (simple ou empilé) + frise de bandes
 │   ├── OptionsEditor.vue         # gestion des raisons / actions d'un journal
 │   ├── PwaPrompts.vue            # bandeaux mise à jour / installation / hors ligne
 │   ├── RichTextEditor.vue        # éditeur du commentaire
@@ -57,9 +58,10 @@ app/
 ├── pages/                        # voir § 4
 ├── plugins/supabase.client.ts    # client Supabase (provide $supabase)
 └── utils/
-    ├── db.ts                     # types, constantes (WAKE_TYPES), schéma Dexie
+    ├── db.ts                     # types, constantes (WAKE_TYPES, APPROACH_KINDS, DAY_PERIODS), schéma Dexie
     ├── errors.ts                 # traduction des messages d'erreur
     ├── night.ts                  # notion de « nuit », formats de date
+    ├── approach.ts               # état et libellés des démarches
     └── token.ts                  # jetons d'invitation, partage natif / copie
 supabase/migrations/              # scripts SQL, à appliquer dans l'ordre
 docs/                             # cette documentation
@@ -76,6 +78,8 @@ Les fonctions de `utils/` et `composables/` sont auto-importées par Nuxt.
 | `/journal/:id` | `pages/journal/[id]/index.vue` | connecté |
 | `/journal/:id/reveil/:wid` (`nouveau` pour une création) | `pages/journal/[id]/reveil/[wid].vue` | connecté |
 | `/journal/:id/stats` | `pages/journal/[id]/stats.vue` | connecté |
+| `/journal/:id/demarches` | `pages/journal/[id]/demarches/index.vue` | connecté |
+| `/journal/:id/demarches/:aid` (`nouveau` pour une création) | `pages/journal/[id]/demarches/[aid].vue` | connecté |
 | `/journal/:id/reglages` | `pages/journal/[id]/reglages.vue` | connecté |
 | `/rejoindre/:token` | `pages/rejoindre/[token].vue` | connecté (sinon redirigé vers `/connexion?redirect=…`) |
 | `/profil` | `pages/profil.vue` | connecté |
@@ -104,14 +108,15 @@ Une base IndexedDB **par utilisateur** : `pascesoir-<userId>` (pas de mélange e
 | `options` | `id` | `journal_id`, `_dirty` | raisons / actions |
 | `wakeups` | `id` | `journal_id`, `[journal_id+woke_at]`, `_dirty` | réveils |
 | `members` | `key` (`<journal_id>:<user_id>`) | `journal_id` | membres + nom affiché (lecture seule, tiré du serveur) |
-| `meta` | `key` | — | curseurs de synchro (`cursor:<journalId>`, `ocursor:<journalId>`) |
+| `approaches` | `id` | `journal_id`, `_dirty` | démarches |
+| `meta` | `key` | — | curseurs de synchro (`cursor:<journalId>`, `ocursor:<journalId>`, `acursor:<journalId>`) |
 
 Champs techniques sur les lignes synchronisées :
 
 - `_dirty` : `1` = modification locale non envoyée.
 - `_lmod` : horodatage local de la dernière modification ; permet de ne pas « nettoyer » une ligne modifiée pendant son envoi.
 
-Versions du schéma (`utils/db.ts`) : v1 initial, v2 ajout des options (rechargement des réveils), v3 rechargement complet après migration des libellés vers les identifiants. Les modifications non envoyées sont toujours conservées lors d'une montée de version.
+Versions du schéma (`utils/db.ts`) : v1 initial, v2 ajout des options (rechargement des réveils), v3 rechargement complet après migration des libellés vers les identifiants, v4 ajout des démarches. Les modifications non envoyées sont toujours conservées lors d'une montée de version.
 
 > Ajouter un champ **non indexé** ne nécessite pas de nouvelle version Dexie : il suffit de tolérer son absence sur les lignes existantes (ex. `wake_type ?? null`).
 
@@ -129,12 +134,13 @@ Lecture réactive : `useLiveQuery(query, initial, deps)` s'appuie sur `liveQuery
 ### Déroulé d'une synchronisation
 
 1. **Push** journaux (un par un ; `deleted_at` n'est envoyé que par le propriétaire, sinon refus serveur).
-2. **Push** options puis réveils, par lots de 100. Si un lot est refusé pour un problème de droits (`42501`, `PGRST301`, ex. journal quitté), les lignes sont renvoyées une à une et les lignes refusées sont abandonnées.
-3. Purge locale des réveils supprimés et confirmés.
-4. **Pull** journaux + membres : journaux supprimés ou dont on n'est plus membre → effacés localement avec leurs réveils, options et curseurs.
-5. **Pull** options puis réveils de chaque journal depuis le curseur, avec **60 s de recouvrement** (lignes commitées en retard), pagination par 500 triée par `(updated_at, id)`.
+2. **Push** options, réveils puis démarches, par lots de 100. Si un lot est refusé pour un problème de droits (`42501`, `PGRST301`, ex. journal quitté), les lignes sont renvoyées une à une et les lignes refusées sont abandonnées.
+3. Purge locale des réveils et démarches supprimés et confirmés.
+4. **Pull** journaux + membres : journaux supprimés ou dont on n'est plus membre → effacés localement avec leurs réveils, options, démarches et curseurs.
+5. **Pull** options, réveils puis démarches de chaque journal depuis le curseur, avec **60 s de recouvrement** (lignes commitées en retard), pagination par 500 triée par `(updated_at, id)`.
    - Réveil supprimé → effacé localement.
    - Option archivée → conservée (son libellé reste affiché sur les anciens réveils).
+   - Démarche supprimée → effacée localement.
 
 ### Déclencheurs
 
@@ -144,6 +150,7 @@ Démarrage, évènement `online`, retour au premier plan (`visibilitychange`), t
 
 - Réveils : `WAKEUP_FIELDS` (`id, journal_id, woke_at, wake_type, reason_ids, action_ids, comment, created_by, created_at, deleted_at`).
 - Options : `OPTION_FIELDS` (`id, journal_id, kind, label, position, created_at, deleted_at`).
+- Démarches : `APPROACH_FIELDS` (`id, journal_id, kind, label, start_date, end_date, periods, comment, created_by, created_at, deleted_at`).
 
 > ⚠️ Ajouter un champ à ces listes **avant** d'avoir appliqué la migration serveur fait échouer l'envoi (colonne inconnue). Toujours déployer la migration en premier.
 
@@ -164,6 +171,9 @@ Partage (`share_token`), retrait d'un membre / quitter, rejoindre (`join_journal
 | Anti double-appui du bouton RÉVEIL (2 s) | `pages/journal/[id]/index.vue` |
 | Réveil « À compléter » = ni raison, ni action, ni commentaire | `components/WakeupCard.vue` |
 | Statistiques (répartition par type, séries empilées, top raisons, heures) | `pages/journal/[id]/stats.vue` |
+| Démarche en cours / à venir / terminée (date de fin incluse), rattachement aux nuits par la date du soir | `utils/approach.ts` |
+| Effet des démarches : réveils nocturnes par nuit pendant vs 30 nuits avant (nuit en cours exclue) ; frise alignée sur l'histogramme (`bands` de `ColumnChart`) | `pages/journal/[id]/stats.vue` |
+| Export PDF = impression du navigateur : classes `print:` (masquage, `break-inside-avoid`, graphiques sans défilement), thème clair forcé sur `beforeprint` / `afterprint`, titre du document = nom de fichier proposé | `app.vue`, `pages/journal/[id]/stats.vue`, `assets/css/main.css` |
 
 ## 9. PWA
 
@@ -172,7 +182,7 @@ Configuration dans `nuxt.config.ts` (`pwa`) :
 - `registerType: 'prompt'` : une nouvelle version n'est appliquée qu'après accord de l'utilisateur (`PwaPrompts.vue`), pour ne pas perdre une saisie ; vérification toutes les heures (`periodicSyncForUpdates: 3600`).
 - Workbox précache `js, css, html, png, svg, ico, woff2` ; `navigateFallback: '/'`. Les appels Supabase ne sont **pas** mis en cache (gérés par l'application via IndexedDB).
 - Bandeau d'installation maison (`installPrompt: true`).
-- **Icônes** : embarquées dans le bundle (`icon.clientBundle`, `provider: 'none'`) pour fonctionner hors ligne. Le scan ne détecte que les icônes écrites dans les composants `.vue` : une icône référencée uniquement dans un fichier `.ts` (ex. `WAKE_TYPES`) doit être ajoutée dans `icon.clientBundle.icons`.
+- **Icônes** : embarquées dans le bundle (`icon.clientBundle`, `provider: 'none'`) pour fonctionner hors ligne. Le scan ne détecte que les icônes écrites dans les composants `.vue` : une icône référencée uniquement dans un fichier `.ts` (ex. `WAKE_TYPES`, `APPROACH_KINDS`) doit être ajoutée dans `icon.clientBundle.icons`.
 - Icônes de l'application : modifier `public/icon.svg` puis `npm run icons`.
 
 ## 10. Environnement et déploiement

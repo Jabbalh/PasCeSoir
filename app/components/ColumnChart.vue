@@ -2,9 +2,12 @@
 /**
  * Histogramme vertical : barres fines, extrémités arrondies, infobulle au survol/tap.
  * Avec `segments`, la barre est empilée (de bas en haut, une classe de couleur par segment).
+ * À l'impression, le graphique tient dans la largeur de la page (pas de défilement).
+ * `bands` : frise sous l'axe, une ligne par bande, de l'item `from` à l'item `to` (inclus).
  */
 const props = defineProps<{
   items: { key: string, label: string, value: number, tooltip: string, segments?: { value: number, class: string }[] }[]
+  bands?: { key: string, label: string, from: number, to: number, class: string, icon?: string, tooltip: string }[]
 }>()
 
 const max = computed(() => Math.max(1, ...props.items.map(i => i.value)))
@@ -36,8 +39,8 @@ watch(() => props.items, async () => {
       >{{ t }}</span>
     </div>
 
-    <div ref="scroller" class="flex-1 overflow-x-auto pb-1">
-      <div class="relative h-44" :style="{ minWidth: `${items.length * 22}px` }">
+    <div ref="scroller" class="flex-1 overflow-x-auto pb-1 print:overflow-visible">
+      <div class="relative h-44 print:min-w-0!" :style="{ minWidth: `${items.length * 22}px` }">
         <!-- grille discrète -->
         <div
           v-for="t in ticks.values"
@@ -49,7 +52,7 @@ watch(() => props.items, async () => {
           <UTooltip v-for="item in items" :key="item.key" :text="item.tooltip" :content="{ side: 'top' }">
             <button
               type="button"
-              class="group flex-1 h-full flex items-end justify-center min-w-5 focus:outline-none"
+              class="group flex-1 h-full flex items-end justify-center min-w-5 print:min-w-0 focus:outline-none"
               :aria-label="item.tooltip"
             >
               <span
@@ -58,7 +61,7 @@ watch(() => props.items, async () => {
                 :style="{ height: item.value ? `${(item.value / ticks.top) * 100}%` : '0' }"
               >
                 <span
-                  v-for="(s, i) in item.segments.filter(s => s.value)"
+                  v-for="(s, i) in item.segments.filter(_ => s.value)"
                   :key="i"
                   class="w-full shrink-0"
                   :class="s.class"
@@ -74,12 +77,28 @@ watch(() => props.items, async () => {
           </UTooltip>
         </div>
       </div>
-      <div class="flex gap-0.5 mt-1" :style="{ minWidth: `${items.length * 22}px` }">
+      <div class="flex gap-0.5 mt-1 print:min-w-0!" :style="{ minWidth: `${items.length * 22}px` }">
         <span
           v-for="(item, i) in items"
           :key="item.key"
-          class="flex-1 min-w-5 text-center text-[10px] text-muted whitespace-nowrap overflow-visible"
+          class="flex-1 min-w-5 print:min-w-0 text-center text-[10px] text-muted whitespace-nowrap overflow-visible"
         >{{ i % labelEvery === 0 ? item.label : '' }}</span>
+      </div>
+      <div v-if="bands?.length" class="mt-2 space-y-1 print:min-w-0!" :style="{ minWidth: `${items.length * 22}px` }">
+        <div v-for="b in bands" :key="b.key" class="relative h-5">
+          <UTooltip :text="b.tooltip" :content="{ side: 'top' }">
+            <button
+              type="button"
+              class="absolute inset-y-0 rounded-full px-1.5 flex items-center gap-1 min-w-0 overflow-hidden text-[10px] font-medium text-inverted focus:outline-none focus-visible:ring-2 ring-primary/50"
+              :class="b.class"
+              :style="{ left: `${(b.from / items.length) * 100}%`, width: `${((b.to - b.from + 1) / items.length) * 100}%` }"
+              :aria-label="b.tooltip"
+            >
+              <UIcon v-if="b.icon" :name="b.icon" class="size-3 shrink-0" />
+              <span class="truncate">{{ b.label }}</span>
+            </button>
+          </UTooltip>
+        </div>
       </div>
     </div>
   </div>
