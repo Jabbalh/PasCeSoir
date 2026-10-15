@@ -175,4 +175,4 @@ Affiche le nom du journal et le prénom de l'enfant, puis bouton **Rejoindre**. 
 
 - Bandeau **« Installer Pas ce soir »** (Android / Chrome). Sur iPhone, pas de bandeau : Safari → Partager → « Sur l'écran d'accueil ».
 - Message **« Prêt pour le hors connexion »** à la première installation du cache.
-- **Nouvelle version disponible** : l'utilisateur choisit « Mettre à jour » ou « Plus tard » (pour ne pas perdre une saisie en cours). Vérification toutes les heures.
+- **Nouvelle version disponible** : l'utilisateur choisit « Mettre à jour » ou « Plus tard » (pour ne pas perdre une saisie en cours). Vérification au lancement, à chaque retour dans l'application, au retour du réseau et toutes les heures. Une version reportée avec « Plus tard » est reproposée au retour suivant dans l'application.

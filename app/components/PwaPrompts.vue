@@ -18,15 +18,50 @@ async function update() {
 }
 
 watch(() => $pwa?.offlineReady, (ready) => {
-  if (!ready) return
+  if (!ready || !$pwa) return
   toast.add({
     title: 'Prêt pour le hors connexion',
     description: 'L\'application fonctionne désormais même sans réseau.',
     icon: 'i-lucide-wifi-off',
     color: 'success'
   })
-  $pwa?.cancelPrompt()
+  // (pas cancelPrompt() : il masquerait aussi une mise à jour détectée en même temps)
+  $pwa.offlineReady = false
 }, { immediate: true })
+
+/**
+ * Recherche d'une nouvelle version au retour au premier plan et au retour du réseau.
+ * Sur mobile, l'application installée est mise en veille puis reprise sans rechargement :
+ * le navigateur ne revérifie alors pas le service worker, et la vérification périodique
+ * du module (un setInterval) est gelée en arrière-plan.
+ */
+let lastCheck = 0
+async function checkForUpdate() {
+  const r = $pwa?.getSWRegistration()
+  if (!r || !navigator.onLine) return
+  // Version déjà téléchargée mais reportée (« Plus tard ») : on la repropose
+  if (r.waiting) {
+    $pwa!.needRefresh = true
+    return
+  }
+  if (r.installing || Date.now() - lastCheck < 60_000) return
+  lastCheck = Date.now()
+  try {
+    await r.update()
+  } catch { /* hors ligne ou serveur injoignable : on réessaiera */ }
+}
+
+function onVisible() {
+  if (document.visibilityState === 'visible') checkForUpdate()
+}
+onMounted(() => {
+  document.addEventListener('visibilitychange', onVisible)
+  window.addEventListener('online', checkForUpdate)
+})
+onBeforeUnmount(() => {
+  document.removeEventListener('visibilitychange', onVisible)
+  window.removeEventListener('online', checkForUpdate)
+})
 </script>
 
 <template>

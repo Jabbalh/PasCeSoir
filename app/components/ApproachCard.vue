@@ -33,7 +33,7 @@ const commentText = computed(() => props.approach.comment.replace(/<[^>]+>/g, ' 
       <UIcon name="i-lucide-chevron-right" class="size-5 text-muted" />
     </div>
     <div v-if="approach.periods.length" class="flex flex-wrap gap-1.5 mt-2">
-      <UBadge v-for="p in DAY_PERIODS.filter(_ => approach.periods.includes(p.value))" :key="p.value" color="neutral" variant="subtle" size="sm" icon="i-lucide-clock">
+      <UBadge v-for="p in DAY_PERIODS.filter(period => approach.periods.includes(period.value))" :key="p.value" color="neutral" variant="subtle" size="sm" icon="i-lucide-clock">
         {{ p.label }}
       </UBadge>
     </div>

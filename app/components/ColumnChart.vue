@@ -61,7 +61,7 @@ watch(() => props.items, async () => {
                 :style="{ height: item.value ? `${(item.value / ticks.top) * 100}%` : '0' }"
               >
                 <span
-                  v-for="(s, i) in item.segments.filter(_ => s.value)"
+                  v-for="(s, i) in item.segments.filter(seg => seg.value)"
                   :key="i"
                   class="w-full shrink-0"
                   :class="s.class"

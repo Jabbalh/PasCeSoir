@@ -315,7 +315,7 @@ function exportPdf() {
         <template v-else>
           <div class="flex h-3 rounded-full bg-elevated overflow-hidden" role="img" :aria-label="byType.segments.map(s => `${s.label} : ${s.count}`).join(', ')">
             <div
-              v-for="s in byType.segments.filter(_ => s.count)"
+              v-for="s in byType.segments.filter(seg => seg.count)"
               :key="s.label"
               class="h-full"
               :class="s.bar"

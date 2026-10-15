@@ -179,7 +179,7 @@ Partage (`share_token`), retrait d'un membre / quitter, rejoindre (`join_journal
 
 Configuration dans `nuxt.config.ts` (`pwa`) :
 
-- `registerType: 'prompt'` : une nouvelle version n'est appliquée qu'après accord de l'utilisateur (`PwaPrompts.vue`), pour ne pas perdre une saisie ; vérification toutes les heures (`periodicSyncForUpdates: 3600`).
+- `registerType: 'prompt'` : une nouvelle version n'est appliquée qu'après accord de l'utilisateur (`PwaPrompts.vue`), pour ne pas perdre une saisie ; vérification toutes les heures (`periodicSyncForUpdates: 3600`) et, dans `PwaPrompts.vue`, `registration.update()` sur `visibilitychange` (visible) et `online` (au plus une fois par minute) : sur mobile, l'app installée est reprise sans rechargement et le `setInterval` du module est gelé en arrière-plan. Si un service worker est déjà en attente (`registration.waiting`, mise à jour reportée), le bandeau est réaffiché.
 - Workbox précache `js, css, html, png, svg, ico, woff2` ; `navigateFallback: '/'`. Les appels Supabase ne sont **pas** mis en cache (gérés par l'application via IndexedDB).
 - Bandeau d'installation maison (`installPrompt: true`).
 - **Icônes** : embarquées dans le bundle (`icon.clientBundle`, `provider: 'none'`) pour fonctionner hors ligne. Le scan ne détecte que les icônes écrites dans les composants `.vue` : une icône référencée uniquement dans un fichier `.ts` (ex. `WAKE_TYPES`, `APPROACH_KINDS`) doit être ajoutée dans `icon.clientBundle.icons`.
