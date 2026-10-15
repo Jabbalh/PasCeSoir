@@ -23,8 +23,9 @@ onBeforeUnmount(() => clearInterval(timer))
 
 const currentNight = computed(() => nightKey(now.value))
 
-// Démarches en place aujourd'hui (rappel compact)
+// Démarches en place aujourd'hui (rappel compact, replié par défaut)
 const { data: approaches } = useApproaches(journalId)
+const approachesOpen = ref(false)
 const currentApproaches = computed(() => {
   const today = toDateKey(now.value)
   return approaches.value.filter(a => approachStatus(a, today) === 'en_cours').map(a => ({ ...a, k: approachKind(a.kind) }))
@@ -127,28 +128,43 @@ async function recordWakeup() {
       </UButton>
     </div>
 
-    <!-- Démarches en cours -->
-    <NuxtLink
+    <!-- Démarches en cours (repliées par défaut) -->
+    <UCollapsible
       v-if="currentApproaches.length"
-      :to="`/journal/${journalId}/demarches`"
-      class="block rounded-xl border border-default bg-elevated/40 hover:bg-elevated p-3 transition"
+      v-model:open="approachesOpen"
+      class="rounded-xl border border-default bg-elevated/40"
     >
-      <p class="text-xs text-muted mb-1.5 flex items-center gap-1">
-        <UIcon name="i-lucide-list-checks" class="size-3.5" />
-        Démarche{{ currentApproaches.length > 1 ? 's' : '' }} en cours
-      </p>
-      <div class="flex flex-wrap gap-1.5">
-        <UBadge
-          v-for="a in currentApproaches"
-          :key="a.id"
-          :color="a.k.color"
-          variant="subtle"
-          :icon="a.k.icon"
-        >
-          {{ a.label }}<span v-if="a.periods.length" class="opacity-70"> · {{ periodsLabel(a.periods) }}</span>
-        </UBadge>
-      </div>
-    </NuxtLink>
+      <button
+        type="button"
+        class="w-full flex items-center gap-2 p-3 text-sm text-muted hover:text-default transition-colors"
+      >
+        <UIcon name="i-lucide-list-checks" class="size-4" />
+        <span class="flex-1 text-left">
+          <strong class="text-default tabular-nums">{{ currentApproaches.length }}</strong>
+          démarche{{ currentApproaches.length > 1 ? 's' : '' }} en cours
+        </span>
+        <UIcon name="i-lucide-chevron-down" class="size-4 transition-transform" :class="{ 'rotate-180': approachesOpen }" />
+      </button>
+
+      <template #content>
+        <div class="px-3 pb-3 space-y-2">
+          <div class="flex flex-wrap gap-1.5">
+            <UBadge
+              v-for="a in currentApproaches"
+              :key="a.id"
+              :color="a.k.color"
+              variant="subtle"
+              :icon="a.k.icon"
+            >
+              {{ a.label }}<span v-if="a.periods.length" class="opacity-70"> · {{ periodsLabel(a.periods) }}</span>
+            </UBadge>
+          </div>
+          <ULink :to="`/journal/${journalId}/demarches`" class="text-xs text-muted inline-flex items-center gap-1">
+            Gérer les démarches <UIcon name="i-lucide-chevron-right" class="size-3" />
+          </ULink>
+        </div>
+      </template>
+    </UCollapsible>
 
     <!-- Nuit en cours -->
     <section class="space-y-2">

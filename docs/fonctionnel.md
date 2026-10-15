@@ -80,7 +80,7 @@ Si des modifications ne sont pas encore synchronisées, une confirmation est dem
 - **Historique** : nuits précédentes groupées par nuit (7 nuits affichées, puis « voir plus »).
 - Chaque réveil affiche l'heure, le type (si renseigné), l'auteur, les raisons (orange) et actions (vert), un extrait du commentaire. Un réveil sans raison, action ni commentaire est marqué **« À compléter »**.
 - Une icône nuage signale un réveil pas encore envoyé au serveur.
-- **Démarches en cours** : sous le bouton, rappel compact des démarches en place aujourd'hui (avec leurs moments), qui ouvre l'onglet Démarches.
+- **Démarches en cours** : sous le bouton, zone **repliée par défaut** intitulée « N démarche(s) en cours » ; un appui la déplie pour voir les démarches en place aujourd'hui (avec leurs moments) et un lien vers l'onglet Démarches. Masquée s'il n'y en a aucune.
 
 ### 5.3 Détail d'un réveil (`/journal/<id>/reveil/<id>` ou `/reveil/nouveau`)
 
