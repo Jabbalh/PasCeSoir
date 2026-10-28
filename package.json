@@ -9,7 +9,10 @@
     "preview": "npx serve .output/public -s",
     "postinstall": "nuxt prepare",
     "typecheck": "nuxt typecheck",
-    "icons": "pwa-assets-generator"
+    "icons": "pwa-assets-generator",
+    "mobile:emulator": "flutter emulators --launch Pixel_Tablet",
+    "mobile:android": "cd mobile && flutter run -d emulator --dart-define-from-file=env.json",
+    "mobile:web": "cd mobile && flutter run -d chrome --dart-define-from-file=env.json"
   },
   "dependencies": {
     "@nuxt/ui": "^4.11.3",
